@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Гуртожиток №1 ПНУ</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="database.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
@@ -199,6 +202,11 @@
 
     <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] w-full max-w-xs space-y-2 pointer-events-none px-4"></div>
 
+    <div id="db-loading" class="fixed inset-0 z-[110] bg-slate-950/50 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
+        <div class="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+        <p class="text-white font-bold text-[14px]">Завантаження даних…</p>
+    </div>
+
     <div id="modal-welcome-instruction" class="fixed inset-0 z-50 bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-xl hidden flex items-center justify-center p-4 transition-all">
         <div class="w-full max-w-sm bg-white/95 dark:bg-slate-900/95 rounded-diia p-6 shadow-2xl border border-white/40 dark:border-slate-700/50 animate-modal max-h-[90vh] flex flex-col justify-between backdrop-blur-md">
             <div class="space-y-4">
@@ -361,6 +369,12 @@
 
             <section id="tab-events" class="app-tab space-y-4 hidden">
                 <div class="flex justify-between items-center bg-white/40 dark:bg-slate-900/40 px-4 py-3 rounded-2xl border border-white/50 dark:border-slate-700/50 backdrop-blur-md shadow-sm">
+                    <h2 class="text-[13px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">Опитування 📊</h2>
+                    <button id="admin-add-poll-btn" class="hidden px-4 py-1.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl font-black text-[13px] btn-push shadow-md">+ Опитування</button>
+                </div>
+                <div id="list-polls" class="space-y-3"></div>
+
+                <div class="flex justify-between items-center bg-white/40 dark:bg-slate-900/40 px-4 py-3 rounded-2xl border border-white/50 dark:border-slate-700/50 backdrop-blur-md shadow-sm pt-2">
                     <h2 class="text-[13px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">Оголошення 📢</h2>
                     <button id="admin-add-event-btn" class="hidden px-4 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-black text-[13px] btn-push shadow-md">Створити</button>
                 </div>
@@ -418,9 +432,10 @@
                         <textarea id="compDesc" rows="3" placeholder="Опишіть ситуацію максимально детально..." required class="w-full px-4 py-3 text-[14px] font-medium bg-white/70 dark:bg-slate-800/60 border border-white/80 dark:border-slate-600/50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-rose-500/40 text-slate-800 dark:text-slate-100 shadow-sm transition-all placeholder:text-slate-400 resize-none"></textarea>
                     </div>
                     <div class="space-y-1.5">
-                        <label class="text-[12px] font-black text-slate-500 dark:text-slate-400 block uppercase tracking-wider pl-1">Фото докази</label>
+                        <label class="text-[12px] font-black text-slate-500 dark:text-slate-400 block uppercase tracking-wider pl-1">Файли (за бажанням)</label>
+                        <p class="text-[11px] text-slate-500 pl-1 mb-1">Фото, PDF або відео — необовʼязково</p>
                         <div class="relative bg-white/70 dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-600 rounded-2xl p-2 hover:border-rose-400 dark:hover:border-rose-500 transition-colors">
-                            <input type="file" id="compPhotoFile" accept="image/*" multiple required class="w-full text-[13px] font-medium text-slate-600 dark:text-slate-300 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[13px] file:font-black file:bg-rose-500/10 file:text-rose-600 dark:file:text-rose-400 file:cursor-pointer hover:file:bg-rose-500/20 file:transition-colors cursor-pointer">
+                            <input type="file" id="compPhotoFile" accept="image/*,video/*,.pdf,application/pdf" multiple class="w-full text-[13px] font-medium text-slate-600 dark:text-slate-300 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[13px] file:font-black file:bg-rose-500/10 file:text-rose-600 dark:file:text-rose-400 file:cursor-pointer hover:file:bg-rose-500/20 file:transition-colors cursor-pointer">
                         </div>
                     </div>
                     <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-rose-600 to-red-500 text-white font-black rounded-2xl text-[15px] btn-push shadow-lg shadow-rose-500/30 uppercase tracking-wide mt-2">Надіслати звернення</button>
@@ -462,6 +477,17 @@
                     <button id="admin-edit-info-btn" class="hidden px-3 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-black text-[12px] btn-push shadow-sm">Редагувати</button>
                 </div>
                 <div class="p-5 bg-white/60 dark:bg-slate-900/60 rounded-[28px] border border-white/60 dark:border-slate-700/50 text-[14px] text-slate-700 dark:text-slate-200 leading-relaxed space-y-3 shadow-md backdrop-blur-xl font-medium" id="info-app-content"></div>
+
+                <section id="admin-bot-visitors-panel" class="hidden space-y-3 p-4 bg-white/60 dark:bg-slate-900/60 rounded-[28px] border border-amber-200/60 dark:border-amber-700/40 shadow-md backdrop-blur-xl">
+                    <div class="flex justify-between items-center gap-2">
+                        <div>
+                            <h2 class="text-[12px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">Користувачі бота 🔐</h2>
+                            <p class="text-[11px] text-slate-500 mt-0.5">Хто натискав /start і відкривав Mini App (лише для адміна)</p>
+                        </div>
+                        <button type="button" id="admin-refresh-visitors-btn" class="px-3 py-1.5 bg-amber-500/20 text-amber-800 dark:text-amber-300 rounded-xl text-[11px] font-black uppercase btn-push border border-amber-400/30">Оновити</button>
+                    </div>
+                    <div id="list-bot-visitors" class="space-y-2 max-h-64 overflow-y-auto scrollbar-none"></div>
+                </section>
                 
                 <button id="re-open-onboarding-btn" class="w-full py-4 bg-white/70 dark:bg-slate-800/60 border border-white/80 dark:border-slate-600/50 rounded-2xl text-[14px] font-black text-slate-700 dark:text-slate-200 btn-push shadow-md backdrop-blur-md flex items-center justify-center gap-2 hover:bg-white transition-colors">
                     <i class="fa-solid fa-graduation-cap text-blue-500 text-lg"></i> Переглянути інструкцію знову
@@ -482,7 +508,7 @@
                 </button>
                 <button data-tab="tab-duty" class="tab-btn relative flex flex-col items-center justify-center w-[60px] h-[60px] rounded-[20px] btn-push hover:bg-white/40 dark:hover:bg-slate-800/40 transition-colors">
                     <svg class="nav-svg-icon w-6 h-6 text-slate-400 dark:text-slate-500 fill-current transition-colors" viewBox="0 0 24 24">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
                     </svg>
                     <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-1.5 tracking-wide">Санітарка</span>
                 </button>
@@ -574,87 +600,12 @@
     </style>
 
     <script>
-        const STORAGE_KEY = 'pnu_dorm1_db_v11';
-        
-        let initialDB = {
-            goals: [
-                { id: "g1", title: "Ремонт пральних машин 🧺", desc: "Заміна ТЕНів та підшипників у двох пральних машинах на 3 та 4 поверхах.", target: 3500 },
-                { id: "g2", title: "Посуд на кухні 🍳", desc: "Закупівля нових сковорідок та каструль спільного користування.", target: 1800 }
-            ],
-            payments: [
-                { id: "p1", room: "302", name: "Владислав Ковальчук", amount: 150, date: "2026-05-10", status: "Здано" },
-                { id: "p2", room: "415", name: "Анна Мельник", amount: 150, date: "2026-05-11", status: "Здано" },
-                { id: "p3", room: "204", name: "Дмитро Шевченко", amount: 0, date: "-", status: "Не здано" },
-                { id: "p4", room: "508", name: "Марія Бондар", amount: 150, date: "2026-05-12", status: "Здано" }
-            ],
-            expenses: [
-                { id: "e1", title: "Закупівля миючих засобів", amount: 450, desc: "Придбано 5л хлорних засобів та рідкого мила для кухонь першого поверху.", date: "2026-05-08", photosList: [] },
-                { id: "e2", title: "Нові замки на двері", amount: 900, desc: "Заміна серцевин та виготовлення дублікатів ключів для сушильної кімнати.", date: "2026-05-14", photosList: [] }
-            ],
-            events: [
-                { id: "ev1", title: "Генеральне прибирання території 🌿", desc: "Збираємось біля головного входу для благоустрою клумб та фарбування лавок. Інвентар видає завідувач гуртожитку.", date: "2026-05-25", time: "15:00", location: "Подвір'я гуртожитку" },
-                { id: "ev2", title: "Планова перевірка електромереж ⚡", desc: "Електрики проводитимуть огляд щитових. Можливі короткочасні відключення світла.", date: "2026-05-28", time: "10:00 - 14:00", location: "Усі блоки" }
-            ],
-            duty: [
-                { id: "d1", floor: "1", wing: "Ліве", room: "105", date: "2026-05-22" },
-                { id: "d2", floor: "3", wing: "Ліве", room: "305", date: "2026-05-22" },
-                { id: "d3", floor: "3", wing: "Праве", room: "309", date: "2026-05-23" }
-            ],
-            leaders: [
-                { id: "l1", role: "Завідувач гуртожитку 🔑", name: "Ольга Миколаївна", phone: "+380671234567", tg: "olga_pnu" },
-                { id: "l2", role: "Голова студради 🎓", name: "Артем Захаров", phone: "+380939876543", tg: "artem_pnu_st" },
-                { id: "l3", role: "Староста гуртожитку 📜", name: "Микола Васильович", phone: "", tg: "" }
-            ],
-            complaints: [],
-            info: {
-                content: `
-                    <div class="text-center mb-4">
-                        <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 text-white flex items-center justify-center text-xl mx-auto mb-2 shadow-lg">
-                            <i class="fa-solid fa-sparkles"></i>
-                        </div>
-                        <h3 class="text-[17px] font-black uppercase text-slate-800 dark:text-slate-100">Ласкаво просимо!</h3>
-                        <p class="text-[13px] text-slate-500 mt-1">Твій кишеньковий помічник по гуртожитку</p>
-                    </div>
-                    
-                    <div class="space-y-3">
-                        <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50">
-                            <h4 class="text-[14px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 mb-1">
-                                <i class="fa-solid fa-wallet text-blue-500"></i> Прозорий бюджет
-                            </h4>
-                            <p class="text-[13px] text-slate-600 dark:text-slate-400">Слідкуй за всіма надходженнями та витратами. Ми прагнемо до повної фінансової прозорості.</p>
-                        </div>
-
-                        <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50">
-                            <h4 class="text-[14px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 mb-1">
-                                <i class="fa-solid fa-broom text-teal-500"></i> Графік чергувань
-                            </h4>
-                            <p class="text-[13px] text-slate-600 dark:text-slate-400">Завжди будь в курсі, хто відповідає за чистоту на поверсі. Поважаймо працю один одного!</p>
-                        </div>
-
-                        <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50">
-                            <h4 class="text-[14px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 mb-1">
-                                <i class="fa-solid fa-paper-plane text-rose-500"></i> Швидкий зв'язок
-                            </h4>
-                            <p class="text-[13px] text-slate-600 dark:text-slate-400">Помітив поломку або маєш пропозицію? Залишай заявку, і адміністрація її обов'язково розгляне.</p>
-                        </div>
-                    </div>
-                    
-                    <div class="mt-4 text-center">
-                        <p class="text-[12px] font-medium text-slate-400">Зробимо наш гуртожиток кращим разом! 💙💛</p>
-                    </div>
-                `
-            },
-            rules: {
-                content: `
-                    <p>Просимо з повагою ставитися до санітарки і не змушувати адміністрацію зачиняти кухні на тиждень.</p>
-                    <p>Зверніть увагу: щосереди проводиться генеральне прибирання кухні, а саме — миття газових плит (зверху та з боків), плитки на стінах, мийок та підлоги.</p>
-                    <p>Дякуємо за розуміння та співпрацю!</p>
-                `
-            }
+        /* Дані в хмарі (Supabase) — працює без увімкненого ПК */
+        let mockDB = {
+            goals: [], payments: [], expenses: [], events: [],
+            duty: [], leaders: [], complaints: [], complaintComments: [], polls: [],
+            info: { content: '' }, rules: { content: '' }
         };
-
-        let mockDB = JSON.parse(localStorage.getItem(STORAGE_KEY)) || initialDB;
-        if (!mockDB.complaints) mockDB.complaints = [];
 
         const tabIconsMap = { 'tab-budget': 'fa-wallet', 'tab-events': 'fa-bullhorn', 'tab-duty': 'fa-circle-info', 'tab-complaints': 'fa-screwdriver-wrench', 'tab-leaders': 'fa-address-book', 'tab-info': 'fa-circle-info' };
         let currentAdminPassword = localStorage.getItem('pnu_admin_session_v11') || null;
@@ -686,12 +637,184 @@
             return `${day} ${months[monthIndex]}`;
         }
 
-        function syncDB() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(mockDB));
+        function refreshMockDB() {
+            mockDB = DormDatabase.getDB();
+        }
+
+        async function initCloudDatabase() {
+            const loader = document.getElementById('db-loading');
+            loader.classList.remove('hidden');
+            try {
+                await DormDatabase.loadDB();
+                refreshMockDB();
+            } catch (err) {
+                console.error(err);
+                showToast('Помилка підключення до бази. Перевірте config.js', 'error');
+            } finally {
+                loader.classList.add('hidden');
+            }
         }
 
         function isAdmin() {
-            return currentAdminPassword === 'admin777';
+            return !!currentAdminPassword;
+        }
+
+        function getTelegramUser() {
+            const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
+            if (!u?.id) return null;
+            const name = [u.first_name, u.last_name].filter(Boolean).join(' ').trim();
+            return {
+                id: String(u.id),
+                username: u.username || '',
+                name: name || (u.username ? '@' + u.username : 'Користувач Telegram')
+            };
+        }
+
+        function escapeAttr(s) {
+            return String(s).replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+        }
+
+        function escapeHtml(s) {
+            const d = document.createElement('div');
+            d.textContent = s || '';
+            return d.innerHTML;
+        }
+
+        function formatDateTime(iso) {
+            if (!iso) return '—';
+            try {
+                const d = new Date(iso);
+                return d.toLocaleString('uk-UA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            } catch (_) {
+                return '—';
+            }
+        }
+
+        function buildComplaintThreadHtml(c) {
+            const tgUser = getTelegramUser();
+            const showThread = isAdmin() || DormDatabase.canViewComplaintThread(c, tgUser);
+            if (!showThread) return '';
+
+            const comments = DormDatabase.getCommentsForComplaint(c.id);
+            let html = '<div class="mt-3 pt-3 border-t border-slate-200/60 dark:border-slate-700/50 space-y-2">';
+            html += '<p class="text-[11px] font-black uppercase tracking-wider text-slate-500"><i class="fa-solid fa-comments mr-1"></i> Переписка по заявці</p>';
+
+            if (comments.length === 0) {
+                html += '<p class="text-[12px] text-slate-400 italic pl-1">Коментарів поки немає</p>';
+            } else {
+                comments.forEach((cm) => {
+                    html += `<div class="pl-3 border-l-2 border-blue-400/50 py-1.5">
+                        <p class="text-[11px] text-blue-600 dark:text-blue-400 font-bold mb-0.5">Адміністрація · ${formatDateTime(cm.createdAt)}</p>
+                        <p class="text-[13px] text-slate-700 dark:text-slate-200 leading-relaxed">${escapeHtml(cm.body)}</p>
+                    </div>`;
+                });
+            }
+
+            if (isAdmin()) {
+                html += `<div class="space-y-2 pt-1">
+                    <textarea id="complaint-comment-${escapeAttr(c.id)}" rows="2" placeholder="Наприклад: замовили деталь, приїде у вівторок" class="w-full px-3 py-2 text-[13px] border border-slate-300/50 dark:border-slate-600 rounded-xl bg-white/70 dark:bg-slate-800/60 focus:outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"></textarea>
+                    <button type="button" class="w-full py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-[12px] font-black uppercase btn-push" onclick="submitComplaintComment('${escapeAttr(c.id)}')"><i class="fa-solid fa-paper-plane mr-1"></i> Надіслати коментар</button>
+                </div>`;
+            }
+
+            html += '</div>';
+            return html;
+        }
+
+        async function submitComplaintComment(complaintId) {
+            if (!isAdmin()) {
+                showToast('Потрібен вхід адміністратора', 'error');
+                return;
+            }
+            const ta = document.getElementById('complaint-comment-' + complaintId);
+            const body = (ta?.value || '').trim();
+            if (!body) {
+                showToast('Введіть текст коментаря', 'error');
+                return;
+            }
+            const complaint = mockDB.complaints.find((x) => x.id === complaintId);
+            try {
+                document.getElementById('db-loading').classList.remove('hidden');
+                await DormDatabase.addComplaintComment(currentAdminPassword, complaintId, body, complaint);
+                refreshMockDB();
+                renderComplaints();
+                showToast('Коментар додано. Автор отримає сповіщення в Telegram 💬');
+            } catch (err) {
+                showToast(err.message || 'Не вдалося додати коментар', 'error');
+            } finally {
+                document.getElementById('db-loading').classList.add('hidden');
+            }
+        }
+        window.submitComplaintComment = submitComplaintComment;
+
+        async function renderBotVisitors() {
+            const panel = document.getElementById('admin-bot-visitors-panel');
+            const list = document.getElementById('list-bot-visitors');
+            if (!panel || !list) return;
+            if (!isAdmin()) {
+                panel.classList.add('hidden');
+                return;
+            }
+            panel.classList.remove('hidden');
+            list.innerHTML = '<p class="text-[12px] text-slate-500 italic text-center py-2">Завантаження...</p>';
+            try {
+                const rows = await DormDatabase.listBotVisitors(currentAdminPassword);
+                if (!rows.length) {
+                    list.innerHTML = '<p class="text-[12px] text-slate-500 italic text-center py-3">Поки ніхто не натискав /start у боті</p>';
+                    return;
+                }
+                list.innerHTML = '';
+                rows.forEach((r) => {
+                    const nick = r.username ? '@' + r.username : '(без @username)';
+                    const name = [r.first_name, r.last_name].filter(Boolean).join(' ') || '—';
+                    const item = document.createElement('div');
+                    item.className = 'p-3 rounded-xl bg-white/50 dark:bg-slate-800/50 border border-white/60 dark:border-slate-700/50 text-[12px]';
+                    item.innerHTML = `
+                        <div class="font-black text-slate-800 dark:text-slate-100">${escapeHtml(nick)}</div>
+                        <div class="text-slate-600 dark:text-slate-300 mt-0.5">${escapeHtml(name)} <span class="text-slate-400">· ID ${escapeHtml(r.telegram_user_id || '—')}</span></div>
+                        <div class="mt-2 grid grid-cols-1 gap-1 text-slate-500">
+                            <span><i class="fa-brands fa-telegram mr-1"></i>/start: ${formatDateTime(r.last_seen_at)}</span>
+                            <span><i class="fa-solid fa-mobile-screen mr-1"></i>Mini App: ${formatDateTime(r.last_webapp_at)}</span>
+                        </div>
+                    `;
+                    list.appendChild(item);
+                });
+            } catch (err) {
+                list.innerHTML = `<p class="text-[12px] text-rose-500 text-center py-2">${escapeHtml(err.message || 'Помилка завантаження')}</p>`;
+            }
+        }
+
+        function renderAttachmentsHtml(attachments, captionPrefix) {
+            const list = attachments && attachments.length ? attachments : [];
+            if (!list.length) return '';
+            let html = `<div class="flex flex-wrap gap-2 pt-1 pb-1 overflow-x-auto scrollbar-none">`;
+            list.forEach((a, i) => {
+                const url = typeof a === 'string' ? a : a.url;
+                const type = typeof a === 'string' ? 'image' : (a.type || 'image');
+                const cap = escapeAttr(`${captionPrefix} - ${i + 1}`);
+                const safeUrl = escapeAttr(url);
+                if (type === 'image') {
+                    html += `<img src="${safeUrl}" class="w-14 h-14 object-cover rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer shadow-sm" onclick="openLightbox('${safeUrl}', '${cap}')">`;
+                } else if (type === 'video') {
+                    html += `<a href="${safeUrl}" target="_blank" class="w-14 h-14 rounded-xl bg-slate-800 text-white flex items-center justify-center text-[10px] font-black border border-slate-600">VIDEO</a>`;
+                } else {
+                    html += `<a href="${safeUrl}" target="_blank" class="px-3 py-2 rounded-xl bg-rose-500/10 text-rose-600 text-[11px] font-black border border-rose-500/20">PDF 📄</a>`;
+                }
+            });
+            html += `</div>`;
+            return html;
+        }
+
+        function formatComplaintAuthor(c) {
+            if (!isAdmin()) return '';
+            if (!c.telegramUserId && !c.telegramUsername && !c.telegramDisplayName) {
+                return `<p class="text-[11px] text-slate-500 italic"><i class="fa-brands fa-telegram mr-1"></i> Автор: невідомий (відкрито не в Telegram)</p>`;
+            }
+            const un = c.telegramUsername ? '@' + c.telegramUsername.replace('@', '') : '';
+            const link = c.telegramUsername
+                ? `<a href="https://t.me/${c.telegramUsername.replace('@', '')}" target="_blank" class="underline">${un}</a>`
+                : '';
+            return `<p class="text-[11px] font-bold text-violet-600 dark:text-violet-400"><i class="fa-brands fa-telegram mr-1"></i> Автор: ${c.telegramDisplayName || '—'} ${link} <span class="text-slate-400 font-medium">(id: ${c.telegramUserId})</span></p>`;
         }
 
         function showToast(message, type = 'success') {
@@ -711,7 +834,7 @@
 
         function updateAdminUI() {
             const adminBtns = [
-                'admin-add-goal-btn', 'admin-add-payment-btn', 'admin-add-expense-btn', 'admin-add-event-btn', 'admin-add-duty-btn', 'admin-edit-info-btn', 'admin-edit-rules-btn', 'admin-add-leader-btn'
+                'admin-add-goal-btn', 'admin-add-payment-btn', 'admin-add-expense-btn', 'admin-add-poll-btn', 'admin-add-event-btn', 'admin-add-duty-btn', 'admin-edit-info-btn', 'admin-edit-rules-btn', 'admin-add-leader-btn'
             ];
             adminBtns.forEach(id => {
                 const btn = document.getElementById(id);
@@ -723,8 +846,11 @@
             const icon = document.getElementById('adminIcon');
             if (isAdmin()) {
                 icon.className = 'fa-solid fa-unlock text-emerald-500 text-[14px] drop-shadow-sm';
+                renderBotVisitors();
             } else {
                 icon.className = 'fa-solid fa-lock text-[14px]';
+                const panel = document.getElementById('admin-bot-visitors-panel');
+                if (panel) panel.classList.add('hidden');
             }
         }
 
@@ -782,6 +908,7 @@
             renderGoals(totalBalance);
             renderPayments();
             renderExpenses();
+            renderPolls();
             renderEvents();
             renderDuty();
             renderComplaints();
@@ -978,6 +1105,96 @@
             });
         }
 
+        function renderPolls() {
+            const list = document.getElementById('list-polls');
+            if (!list) return;
+            list.innerHTML = '';
+            const tgUser = getTelegramUser();
+            if (!mockDB.polls || mockDB.polls.length === 0) {
+                list.innerHTML = `<p class="text-[14px] text-slate-500 dark:text-slate-400 text-center py-3 font-medium">Активних опитувань немає</p>`;
+                return;
+            }
+            mockDB.polls.forEach(p => {
+                const results = DormDatabase.getPollResults(p.id);
+                const myVote = tgUser ? DormDatabase.getUserVote(p.id, tgUser.id) : null;
+                const item = document.createElement('div');
+                item.className = 'p-4 diia-glass-card rounded-[24px] cascade-item space-y-3';
+                let optionsHTML = '';
+                p.options.forEach((label, idx) => {
+                    const r = results[idx] || { percent: 0, count: 0 };
+                    const voted = myVote === idx;
+                    const canVote = p.active && tgUser && myVote === null;
+                    optionsHTML += `
+                        <div class="space-y-1">
+                            <div class="flex justify-between items-center gap-2">
+                                ${canVote
+                                    ? `<button type="button" onclick="castPollVote('${p.id}', ${idx})" class="flex-1 text-left px-3 py-2 rounded-xl bg-white/60 dark:bg-slate-800/60 border border-violet-500/30 text-[13px] font-bold text-slate-800 dark:text-slate-100 btn-push">${label}</button>`
+                                    : `<span class="text-[13px] font-bold text-slate-800 dark:text-slate-100 flex-1">${label} ${voted ? '✓' : ''}</span>`
+                                }
+                                <span class="text-[11px] font-black text-violet-600">${r.percent}%</span>
+                            </div>
+                            <div class="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                                <div class="bg-violet-500 h-full rounded-full" style="width:${r.percent}%"></div>
+                            </div>
+                        </div>`;
+                });
+                if (!tgUser && p.active) {
+                    optionsHTML += `<p class="text-[11px] text-amber-600 font-bold">Відкрийте додаток у Telegram, щоб голосувати</p>`;
+                }
+                item.innerHTML = `
+                    <div class="flex justify-between items-start gap-2">
+                        <div>
+                            <h4 class="text-[15px] font-black text-slate-800 dark:text-slate-100">${p.title}</h4>
+                            <p class="text-[12px] text-slate-600 dark:text-slate-400 mt-1">${p.desc || ''}</p>
+                        </div>
+                        <span class="text-[10px] font-black uppercase px-2 py-1 rounded-lg ${p.active ? 'bg-emerald-500/10 text-emerald-600' : 'bg-slate-500/10 text-slate-500'}">${p.active ? 'Активне' : 'Закрите'}</span>
+                    </div>
+                    <div class="space-y-2">${optionsHTML}</div>
+                    ${isAdmin() ? `
+                        <div class="flex gap-2 justify-end pt-2 border-t border-slate-200/50 dark:border-slate-700/50">
+                            ${p.active ? `<button type="button" onclick="closePoll('${p.id}')" class="px-3 py-1.5 text-[11px] font-black rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 btn-push">Закрити</button>` : ''}
+                            <button type="button" onclick="handleItemDeletion('polls', '${p.id}')" class="px-3 py-1.5 text-[11px] font-black rounded-lg bg-rose-500/10 text-rose-600 btn-push">Видалити</button>
+                        </div>
+                    ` : ''}
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        async function castPollVote(pollId, optionIndex) {
+            const tg = getTelegramUser();
+            if (!tg) {
+                showToast('Голосування лише в Telegram', 'error');
+                return;
+            }
+            try {
+                document.getElementById('db-loading').classList.remove('hidden');
+                await DormDatabase.castVote(pollId, tg.id, optionIndex);
+                refreshMockDB();
+                renderPolls();
+                showToast('Ваш голос зараховано! 📊');
+            } catch (err) {
+                showToast(err.message || 'Помилка голосування', 'error');
+            } finally {
+                document.getElementById('db-loading').classList.add('hidden');
+            }
+        }
+
+        async function closePoll(pollId) {
+            if (!isAdmin()) return;
+            try {
+                document.getElementById('db-loading').classList.remove('hidden');
+                await DormDatabase.adminSave(currentAdminPassword, 'polls', 'close', { id: pollId });
+                refreshMockDB();
+                renderPolls();
+                showToast('Опитування закрито');
+            } catch (err) {
+                showToast(err.message || 'Помилка', 'error');
+            } finally {
+                document.getElementById('db-loading').classList.add('hidden');
+            }
+        }
+
         function renderComplaints() {
             const list = document.getElementById('list-complaints');
             list.innerHTML = '';
@@ -988,14 +1205,9 @@
             mockDB.complaints.forEach(c => {
                 const item = document.createElement('div');
                 item.className = 'p-4 space-y-3 cascade-item relative';
-                let photosHTML = '';
-                if (c.photosList && c.photosList.length > 0) {
-                    photosHTML = `<div class="flex gap-2 pt-1 pb-1 overflow-x-auto scrollbar-none">`;
-                    c.photosList.forEach((url, i) => {
-                        photosHTML += `<img src="${url}" class="w-12 h-12 object-cover rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer hover:scale-105 transition-transform" onclick="openLightbox('${url}', '${c.subject} - Доказ ${i+1}')">`;
-                    });
-                    photosHTML += `</div>`;
-                }
+                const att = c.attachments && c.attachments.length ? c.attachments : (c.photosList || []).map(u => ({ url: u, type: 'image' }));
+                const photosHTML = renderAttachmentsHtml(att, c.subject);
+                const authorHTML = formatComplaintAuthor(c);
                 item.innerHTML = `
                     <div class="flex justify-between items-start mb-1">
                         <div class="pr-6">
@@ -1012,8 +1224,10 @@
                             ` : ''}
                         </div>
                     </div>
+                    ${authorHTML}
                     <p class="text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed font-medium bg-white/40 dark:bg-slate-800/40 p-2.5 rounded-xl border border-white/50 dark:border-slate-700/50">${c.desc}</p>
                     ${photosHTML}
+                    ${buildComplaintThreadHtml(c)}
                     ${isAdmin() && c.status !== 'Вирішено 🎉' ? `
                         <div class="flex justify-end pt-2 border-t border-slate-200/50 dark:border-slate-700/50 mt-2">
                             <button class="px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-lg text-[11px] font-black uppercase tracking-wider btn-push shadow-md" onclick="changeComplaintStatus('${c.id}', 'Вирішено 🎉')"><i class="fa-solid fa-check mr-1"></i> Відмітити як вирішено</button>
@@ -1024,13 +1238,32 @@
             });
         }
 
-        function changeComplaintStatus(id, newStatus) {
-            let item = mockDB.complaints.find(x => x.id === id);
-            if (item) {
-                item.status = newStatus;
-                syncDB();
+        async function changeComplaintStatus(id, newStatus) {
+            if (!isAdmin()) {
+                showToast('Потрібен вхід адміністратора', 'error');
+                return;
+            }
+            const item = mockDB.complaints.find(x => x.id === id);
+            if (!item) {
+                showToast('Звернення не знайдено', 'error');
+                return;
+            }
+            try {
+                document.getElementById('db-loading').classList.remove('hidden');
+                await DormDatabase.adminSave(currentAdminPassword, 'complaints', 'edit', {
+                    id: item.id,
+                    subject: item.subject,
+                    desc: item.desc,
+                    status: newStatus
+                });
+                refreshMockDB();
                 renderAll();
                 showToast('Статус звернення оновлено!');
+            } catch (err) {
+                console.error(err);
+                showToast(err.message || 'Помилка оновлення статусу', 'error');
+            } finally {
+                document.getElementById('db-loading').classList.add('hidden');
             }
         }
 
@@ -1058,6 +1291,7 @@
                         <div class="min-w-0 flex-1">
                             <span class="text-[11px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 block leading-none mb-1.5">${l.role}</span>
                             <h4 class="text-[15px] font-black text-slate-800 dark:text-slate-100 truncate leading-tight">${l.name}</h4>
+                            ${l.room && l.room.trim() ? `<span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-0.5 block"><i class="fa-solid fa-door-open mr-1"></i> кімн. ${escapeHtml(l.room)}</span>` : ''}
                         </div>
                     </div>
                     
@@ -1082,32 +1316,22 @@
         }
 
         function handleItemDeletion(sheet, id) {
-            showCustomConfirm('Ви впевнені, що хочете видалити цей запис безповоротно? ❌', () => {
-                mockDB[sheet] = mockDB[sheet].filter(x => x.id !== id);
-                syncDB();
-                renderAll();
-                showToast('Запис успішно видалено!');
-            });
-        }
-
-        function readMultipleFiles(fileInput, callback) {
-            if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-                callback([]);
+            if (!isAdmin()) {
+                showToast('Потрібен вхід адміністратора', 'error');
                 return;
             }
-            let files = Array.from(fileInput.files);
-            let results = [];
-            let readCount = 0;
-            files.forEach(file => {
-                let reader = new FileReader();
-                reader.onload = function(e) {
-                    results.push(e.target.result);
-                    readCount++;
-                    if (readCount === files.length) {
-                        callback(results);
-                    }
-                };
-                reader.readAsDataURL(file);
+            showCustomConfirm('Ви впевнені, що хочете видалити цей запис безповоротно? ❌', async () => {
+                try {
+                    document.getElementById('db-loading').classList.remove('hidden');
+                    await DormDatabase.deleteRow(currentAdminPassword, sheet, id);
+                    refreshMockDB();
+                    renderAll();
+                    showToast('Запис успішно видалено!');
+                } catch (err) {
+                    showToast(err.message || 'Помилка видалення', 'error');
+                } finally {
+                    document.getElementById('db-loading').classList.add('hidden');
+                }
             });
         }
 
@@ -1182,7 +1406,7 @@
                     </div>
                     <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1 block">Фото (Опціонально)</label>
-                        <input type="file" id="input-exp-files" accept="image/*" multiple class="w-full text-[13px] file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[13px] file:font-black file:bg-blue-500/10 file:text-blue-600 cursor-pointer">
+                        <input type="file" id="input-exp-files" accept="image/*,video/*,.pdf,application/pdf" multiple class="w-full text-[13px] file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[13px] file:font-black file:bg-blue-500/10 file:text-blue-600 cursor-pointer">
                     </div>
                 `;
             } else if (sheet === 'events') {
@@ -1252,12 +1476,32 @@
                         <input type="text" id="input-lead-name" value="${item ? item.name : ''}" required class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all">
                     </div>
                     <div class="space-y-1">
+                        <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">№ кімнати</label>
+                        <input type="text" id="input-lead-room" value="${item ? (item.room || '') : ''}" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all" placeholder="Наприклад: 305">
+                    </div>
+                    <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Номер телефону</label>
                         <input type="text" id="input-lead-phone" value="${item ? item.phone : ''}" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all" placeholder="+380...">
                     </div>
                     <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Telegram (@)</label>
                         <input type="text" id="input-lead-tg" value="${item ? item.tg : ''}" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all" placeholder="@username">
+                    </div>
+                `;
+            } else if (sheet === 'polls') {
+                title.innerText = '📊 Нове опитування';
+                fieldsContainer.innerHTML = `
+                    <div class="space-y-1">
+                        <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Питання</label>
+                        <input type="text" id="input-poll-title" required class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-slate-100">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Опис (необовʼязково)</label>
+                        <textarea id="input-poll-desc" rows="2" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-slate-100"></textarea>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Варіанти (кожен з нового рядка, мін. 2)</label>
+                        <textarea id="input-poll-options" rows="4" required placeholder="Так&#10;Ні&#10;Утриматись" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-slate-100"></textarea>
                     </div>
                 `;
             } else if (sheet === 'complaints') {
@@ -1290,10 +1534,42 @@
             document.getElementById('modal-crud-form').classList.remove('hidden');
         }
 
-        window.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener('DOMContentLoaded', async () => {
+            const tg = window.Telegram?.WebApp;
+            if (tg) {
+                tg.ready();
+                tg.expand();
+                if (tg.themeParams?.bg_color) {
+                    document.documentElement.style.setProperty('--tg-bg', tg.themeParams.bg_color);
+                }
+            }
+
             if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
                 document.documentElement.classList.add('dark');
             }
+
+            await initCloudDatabase();
+
+            const tgUserOnLoad = getTelegramUser();
+            if (tgUserOnLoad) {
+                try {
+                    await DormDatabase.trackWebAppVisit(tgUserOnLoad);
+                } catch (e) {
+                    console.warn('trackWebAppVisit', e);
+                }
+            }
+
+            const savedAdmin = localStorage.getItem('pnu_admin_session_v11');
+            if (savedAdmin) {
+                try {
+                    const ok = await DormDatabase.verifyAdmin(savedAdmin);
+                    if (ok) currentAdminPassword = savedAdmin;
+                    else localStorage.removeItem('pnu_admin_session_v11');
+                } catch (_) {
+                    localStorage.removeItem('pnu_admin_session_v11');
+                }
+            }
+
             openWelcomeInstruction();
 
             document.getElementById('welcome-next-btn').addEventListener('click', () => {
@@ -1305,6 +1581,7 @@
             document.getElementById('welcome-skip-btn').addEventListener('click', closeWelcomeInstruction);
             document.getElementById('welcome-start-btn').addEventListener('click', closeWelcomeInstruction);
             document.getElementById('re-open-onboarding-btn').addEventListener('click', () => openWelcomeInstruction(true));
+            document.getElementById('admin-refresh-visitors-btn')?.addEventListener('click', () => renderBotVisitors());
 
             document.getElementById('confirm-cancel-btn').addEventListener('click', () => {
                 document.getElementById('modal-custom-confirm').classList.add('hidden'); confirmCallback = null;
@@ -1389,13 +1666,24 @@
             document.getElementById('auth-cancel-btn').addEventListener('click', () => document.getElementById('modal-auth').classList.add('hidden'));
             document.getElementById('logout-cancel-btn').addEventListener('click', () => document.getElementById('modal-confirm-logout').classList.add('hidden'));
 
-            document.getElementById('auth-submit-btn').addEventListener('click', () => {
+            document.getElementById('auth-submit-btn').addEventListener('click', async () => {
                 const pass = document.getElementById('adminPasswordInput').value;
-                if (pass === 'admin777') {
-                    currentAdminPassword = pass; localStorage.setItem('pnu_admin_session_v11', pass);
-                    document.getElementById('modal-auth').classList.add('hidden'); updateAdminUI(); renderAll();
-                    showToast('Авторизовано як адмін! 🔓');
-                } else { showToast('Невірний пароль! ❌', 'error'); }
+                try {
+                    const ok = await DormDatabase.verifyAdmin(pass);
+                    if (ok) {
+                        currentAdminPassword = pass;
+                        localStorage.setItem('pnu_admin_session_v11', pass);
+                        document.getElementById('modal-auth').classList.add('hidden');
+                        updateAdminUI();
+                        renderAll();
+                        await renderBotVisitors();
+                        showToast('Авторизовано як адмін! 🔓');
+                    } else {
+                        showToast('Невірний пароль! ❌', 'error');
+                    }
+                } catch (err) {
+                    showToast('Помилка перевірки пароля', 'error');
+                }
             });
 
             document.getElementById('logout-confirm-btn').addEventListener('click', () => {
@@ -1406,116 +1694,142 @@
 
             document.getElementById('lightbox-close-btn').addEventListener('click', () => { document.getElementById('lightbox-modal').classList.add('hidden'); });
 
-            document.getElementById('form-complaint').addEventListener('submit', function(e) {
+            document.getElementById('form-complaint').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 const subject = document.getElementById('compSubject').value;
                 const desc = document.getElementById('compDesc').value;
                 const fileInput = document.getElementById('compPhotoFile');
-                
-                readMultipleFiles(fileInput, (base64Images) => {
-                    mockDB.complaints.unshift({
-                        id: "c_" + Date.now(), subject: subject, desc: desc,
-                        status: "В обробці ⏳", date: new Date().toISOString().split('T')[0], photosList: base64Images
-                    });
-                    syncDB(); renderAll();
+                const tg = getTelegramUser();
+                if (!tg) {
+                    showToast('Надсилайте звернення з Telegram Mini App', 'error');
+                    return;
+                }
+                try {
+                    document.getElementById('db-loading').classList.remove('hidden');
+                    const attachments = await DormDatabase.uploadFilesFromInput(fileInput, 'complaints');
+                    await DormDatabase.insertComplaint({ subject, desc, attachments, telegramUser: tg });
+                    refreshMockDB();
+                    renderAll();
                     document.getElementById('form-complaint').reset();
                     showToast('Звернення успішно надіслано! 🛠️');
-                });
+                } catch (err) {
+                    showToast(err.message || 'Не вдалося надіслати заявку', 'error');
+                } finally {
+                    document.getElementById('db-loading').classList.add('hidden');
+                }
             });
 
-            document.getElementById('form-universal-crud').addEventListener('submit', function(e) {
+            document.getElementById('form-universal-crud').addEventListener('submit', async function(e) {
                 e.preventDefault();
+                if (!isAdmin()) {
+                    showToast('Потрібен вхід адміністратора', 'error');
+                    return;
+                }
                 const sheet = document.getElementById('crud-sheet-name').value;
                 const action = document.getElementById('crud-action-type').value;
-                const id = document.getElementById('crud-row-id').value;
+                const rowId = document.getElementById('crud-row-id').value;
 
-                function finalizeFormSubmit() {
-                    syncDB(); renderAll();
+                async function finalizeFormSubmit() {
+                    refreshMockDB();
+                    renderAll();
                     document.getElementById('modal-crud-form').classList.add('hidden');
                     showToast('Дані успішно збережено! 🎉');
                 }
 
-                if (sheet === 'goals') {
-                    const titleVal = document.getElementById('input-goal-title').value;
-                    const descVal = document.getElementById('input-goal-desc').value;
-                    const targetVal = Number(document.getElementById('input-goal-target').value);
-                    if (action === 'add') {
-                        mockDB.goals.unshift({ id: "g_" + Date.now(), title: titleVal, desc: descVal, target: targetVal });
-                    } else {
-                        let item = mockDB.goals.find(x => x.id === id);
-                        if (item) { item.title = titleVal; item.desc = descVal; item.target = targetVal; }
+                try {
+                    document.getElementById('db-loading').classList.remove('hidden');
+                    let payload = { id: rowId || '' };
+
+                    if (sheet === 'goals') {
+                        payload = {
+                            id: action === 'add' ? 'g_' + Date.now() : rowId,
+                            title: document.getElementById('input-goal-title').value,
+                            desc: document.getElementById('input-goal-desc').value,
+                            target: Number(document.getElementById('input-goal-target').value)
+                        };
+                    } else if (sheet === 'payments') {
+                        payload = {
+                            id: action === 'add' ? 'p_' + Date.now() : rowId,
+                            room: document.getElementById('input-pay-room').value,
+                            name: document.getElementById('input-pay-name').value,
+                            amount: Number(document.getElementById('input-pay-amount').value),
+                            date: document.getElementById('input-pay-date').value,
+                            status: document.getElementById('input-pay-status').value
+                        };
+                    } else if (sheet === 'expenses') {
+                        const fileInput = document.getElementById('input-exp-files');
+                        const files = await DormDatabase.uploadFilesFromInput(fileInput, 'expenses');
+                        payload = {
+                            id: 'ex_' + Date.now(),
+                            title: document.getElementById('input-exp-title').value,
+                            amount: Number(document.getElementById('input-exp-amount').value),
+                            desc: document.getElementById('input-exp-desc').value,
+                            date: new Date().toISOString().split('T')[0],
+                            photosList: files.filter(f => f.type === 'image').map(f => f.url)
+                        };
+                    } else if (sheet === 'polls') {
+                        const optsRaw = document.getElementById('input-poll-options').value.split('\n').map(s => s.trim()).filter(Boolean);
+                        if (optsRaw.length < 2) {
+                            showToast('Додайте щонайменше 2 варіанти', 'error');
+                            document.getElementById('db-loading').classList.add('hidden');
+                            return;
+                        }
+                        payload = {
+                            id: 'poll_' + Date.now(),
+                            title: document.getElementById('input-poll-title').value,
+                            desc: document.getElementById('input-poll-desc').value,
+                            options: optsRaw
+                        };
+                    } else if (sheet === 'events') {
+                        payload = {
+                            id: action === 'add' ? 'ev_' + Date.now() : rowId,
+                            title: document.getElementById('input-ev-title').value,
+                            desc: document.getElementById('input-ev-desc').value,
+                            date: document.getElementById('input-ev-date').value,
+                            time: document.getElementById('input-ev-time').value,
+                            location: document.getElementById('input-ev-location').value
+                        };
+                    } else if (sheet === 'duty') {
+                        payload = {
+                            id: 'd_' + Date.now(),
+                            floor: document.getElementById('input-duty-floor').value,
+                            wing: document.getElementById('input-duty-wing').value,
+                            room: document.getElementById('input-duty-room').value,
+                            date: document.getElementById('input-duty-date').value
+                        };
+                    } else if (sheet === 'leaders') {
+                        payload = {
+                            id: action === 'add' ? 'l_' + Date.now() : rowId,
+                            role: document.getElementById('input-lead-role').value,
+                            name: document.getElementById('input-lead-name').value,
+                            room: document.getElementById('input-lead-room').value,
+                            phone: document.getElementById('input-lead-phone').value,
+                            tg: document.getElementById('input-lead-tg').value
+                        };
+                    } else if (sheet === 'complaints') {
+                        payload = {
+                            id: rowId,
+                            subject: document.getElementById('input-comp-subject').value,
+                            desc: document.getElementById('input-comp-desc').value,
+                            status: document.getElementById('input-comp-status').value
+                        };
+                    } else if (sheet === 'info' || sheet === 'rules') {
+                        payload = { content: document.getElementById('input-html-content').value };
                     }
-                    finalizeFormSubmit();
-                } else if (sheet === 'payments') {
-                    const roomVal = document.getElementById('input-pay-room').value;
-                    const nameVal = document.getElementById('input-pay-name').value;
-                    const amountVal = Number(document.getElementById('input-pay-amount').value);
-                    const dateVal = document.getElementById('input-pay-date').value;
-                    const statusVal = document.getElementById('input-pay-status').value;
-                    if (action === 'add') {
-                        mockDB.payments.unshift({ id: "p_" + Date.now(), room: roomVal, name: nameVal, amount: amountVal, date: dateVal, status: statusVal });
-                    } else {
-                        let item = mockDB.payments.find(x => x.id === id);
-                        if (item) { item.room = roomVal; item.name = nameVal; item.amount = amountVal; item.date = dateVal; item.status = statusVal; }
-                    }
-                    finalizeFormSubmit();
-                } else if (sheet === 'expenses') {
-                    const titleVal = document.getElementById('input-exp-title').value;
-                    const amountVal = Number(document.getElementById('input-exp-amount').value);
-                    const descVal = document.getElementById('input-exp-desc').value;
-                    const fileInput = document.getElementById('input-exp-files');
-                    readMultipleFiles(fileInput, (base64Images) => {
-                        mockDB.expenses.unshift({ id: "ex_" + Date.now(), title: titleVal, amount: amountVal, desc: descVal, date: new Date().toISOString().split('T')[0], photosList: base64Images });
-                        finalizeFormSubmit();
-                    });
-                } else if (sheet === 'events') {
-                    const titleVal = document.getElementById('input-ev-title').value;
-                    const descVal = document.getElementById('input-ev-desc').value;
-                    const dateVal = document.getElementById('input-ev-date').value;
-                    const timeVal = document.getElementById('input-ev-time').value;
-                    const locVal = document.getElementById('input-ev-location').value;
-                    if (action === 'add') {
-                        mockDB.events.unshift({ id: "ev_" + Date.now(), title: titleVal, desc: descVal, date: dateVal, time: timeVal, location: locVal });
-                    } else {
-                        let item = mockDB.events.find(x => x.id === id);
-                        if (item) { item.title = titleVal; item.desc = descVal; item.date = dateVal; item.time = timeVal; item.location = locVal; }
-                    }
-                    finalizeFormSubmit();
-                } else if (sheet === 'duty') {
-                    const floorVal = document.getElementById('input-duty-floor').value;
-                    const wingVal = document.getElementById('input-duty-wing').value;
-                    const roomVal = document.getElementById('input-duty-room').value;
-                    const dateVal = document.getElementById('input-duty-date').value;
-                    mockDB.duty.unshift({ id: "d_" + Date.now(), floor: floorVal, wing: wingVal, room: roomVal, date: dateVal });
-                    finalizeFormSubmit();
-                } else if (sheet === 'leaders') {
-                    const roleVal = document.getElementById('input-lead-role').value;
-                    const nameVal = document.getElementById('input-lead-name').value;
-                    const phoneVal = document.getElementById('input-lead-phone').value;
-                    const tgVal = document.getElementById('input-lead-tg').value;
-                    if (action === 'add') {
-                        mockDB.leaders.push({ id: "l_" + Date.now(), role: roleVal, name: nameVal, phone: phoneVal, tg: tgVal });
-                    } else {
-                        let item = mockDB.leaders.find(x => x.id === id);
-                        if (item) { item.role = roleVal; item.name = nameVal; item.phone = phoneVal; item.tg = tgVal; }
-                    }
-                    finalizeFormSubmit();
-                } else if (sheet === 'complaints') {
-                    const subVal = document.getElementById('input-comp-subject').value;
-                    const descVal = document.getElementById('input-comp-desc').value;
-                    const statVal = document.getElementById('input-comp-status').value;
-                    let item = mockDB.complaints.find(x => x.id === id);
-                    if (item) { item.subject = subVal; item.desc = descVal; item.status = statVal; }
-                    finalizeFormSubmit();
-                } else if (sheet === 'info' || sheet === 'rules') {
-                    mockDB[sheet].content = document.getElementById('input-html-content').value;
-                    finalizeFormSubmit();
+
+                    await DormDatabase.adminSave(currentAdminPassword, sheet, action, payload);
+                    await finalizeFormSubmit();
+                } catch (err) {
+                    showToast(err.message || 'Помилка збереження', 'error');
+                } finally {
+                    document.getElementById('db-loading').classList.add('hidden');
                 }
             });
 
             document.getElementById('admin-add-goal-btn').addEventListener('click', () => openCrudForm('goals', 'add'));
             document.getElementById('admin-add-payment-btn').addEventListener('click', () => openCrudForm('payments', 'add'));
             document.getElementById('admin-add-expense-btn').addEventListener('click', () => openCrudForm('expenses', 'add'));
+            document.getElementById('admin-add-poll-btn').addEventListener('click', () => openCrudForm('polls', 'add'));
             document.getElementById('admin-add-event-btn').addEventListener('click', () => openCrudForm('events', 'add'));
             document.getElementById('admin-add-duty-btn').addEventListener('click', () => openCrudForm('duty', 'add'));
             document.getElementById('admin-add-leader-btn').addEventListener('click', () => openCrudForm('leaders', 'add'));
