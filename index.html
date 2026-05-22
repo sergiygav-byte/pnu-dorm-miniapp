@@ -369,6 +369,12 @@
 
             <section id="tab-events" class="app-tab space-y-4 hidden">
                 <div class="flex justify-between items-center bg-white/40 dark:bg-slate-900/40 px-4 py-3 rounded-2xl border border-white/50 dark:border-slate-700/50 backdrop-blur-md shadow-sm">
+                    <h2 class="text-[13px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">Опитування 📊</h2>
+                    <button id="admin-add-poll-btn" class="hidden px-4 py-1.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl font-black text-[13px] btn-push shadow-md">+ Опитування</button>
+                </div>
+                <div id="list-polls" class="space-y-3"></div>
+
+                <div class="flex justify-between items-center bg-white/40 dark:bg-slate-900/40 px-4 py-3 rounded-2xl border border-white/50 dark:border-slate-700/50 backdrop-blur-md shadow-sm pt-2">
                     <h2 class="text-[13px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">Оголошення 📢</h2>
                     <button id="admin-add-event-btn" class="hidden px-4 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-black text-[13px] btn-push shadow-md">Створити</button>
                 </div>
@@ -426,9 +432,10 @@
                         <textarea id="compDesc" rows="3" placeholder="Опишіть ситуацію максимально детально..." required class="w-full px-4 py-3 text-[14px] font-medium bg-white/70 dark:bg-slate-800/60 border border-white/80 dark:border-slate-600/50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-rose-500/40 text-slate-800 dark:text-slate-100 shadow-sm transition-all placeholder:text-slate-400 resize-none"></textarea>
                     </div>
                     <div class="space-y-1.5">
-                        <label class="text-[12px] font-black text-slate-500 dark:text-slate-400 block uppercase tracking-wider pl-1">Фото докази</label>
+                        <label class="text-[12px] font-black text-slate-500 dark:text-slate-400 block uppercase tracking-wider pl-1">Файли (за бажанням)</label>
+                        <p class="text-[11px] text-slate-500 pl-1 mb-1">Фото, PDF або відео — необовʼязково</p>
                         <div class="relative bg-white/70 dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-600 rounded-2xl p-2 hover:border-rose-400 dark:hover:border-rose-500 transition-colors">
-                            <input type="file" id="compPhotoFile" accept="image/*" multiple required class="w-full text-[13px] font-medium text-slate-600 dark:text-slate-300 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[13px] file:font-black file:bg-rose-500/10 file:text-rose-600 dark:file:text-rose-400 file:cursor-pointer hover:file:bg-rose-500/20 file:transition-colors cursor-pointer">
+                            <input type="file" id="compPhotoFile" accept="image/*,video/*,.pdf,application/pdf" multiple class="w-full text-[13px] font-medium text-slate-600 dark:text-slate-300 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[13px] file:font-black file:bg-rose-500/10 file:text-rose-600 dark:file:text-rose-400 file:cursor-pointer hover:file:bg-rose-500/20 file:transition-colors cursor-pointer">
                         </div>
                     </div>
                     <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-rose-600 to-red-500 text-white font-black rounded-2xl text-[15px] btn-push shadow-lg shadow-rose-500/30 uppercase tracking-wide mt-2">Надіслати звернення</button>
@@ -585,7 +592,7 @@
         /* Дані в хмарі (Supabase) — працює без увімкненого ПК */
         let mockDB = {
             goals: [], payments: [], expenses: [], events: [],
-            duty: [], leaders: [], complaints: [],
+            duty: [], leaders: [], complaints: [], polls: [],
             info: { content: '' }, rules: { content: '' }
         };
 
@@ -641,6 +648,54 @@
             return !!currentAdminPassword;
         }
 
+        function getTelegramUser() {
+            const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
+            if (!u?.id) return null;
+            const name = [u.first_name, u.last_name].filter(Boolean).join(' ').trim();
+            return {
+                id: String(u.id),
+                username: u.username || '',
+                name: name || (u.username ? '@' + u.username : 'Користувач Telegram')
+            };
+        }
+
+        function escapeAttr(s) {
+            return String(s).replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+        }
+
+        function renderAttachmentsHtml(attachments, captionPrefix) {
+            const list = attachments && attachments.length ? attachments : [];
+            if (!list.length) return '';
+            let html = `<div class="flex flex-wrap gap-2 pt-1 pb-1 overflow-x-auto scrollbar-none">`;
+            list.forEach((a, i) => {
+                const url = typeof a === 'string' ? a : a.url;
+                const type = typeof a === 'string' ? 'image' : (a.type || 'image');
+                const cap = escapeAttr(`${captionPrefix} - ${i + 1}`);
+                const safeUrl = escapeAttr(url);
+                if (type === 'image') {
+                    html += `<img src="${safeUrl}" class="w-14 h-14 object-cover rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer shadow-sm" onclick="openLightbox('${safeUrl}', '${cap}')">`;
+                } else if (type === 'video') {
+                    html += `<a href="${safeUrl}" target="_blank" class="w-14 h-14 rounded-xl bg-slate-800 text-white flex items-center justify-center text-[10px] font-black border border-slate-600">VIDEO</a>`;
+                } else {
+                    html += `<a href="${safeUrl}" target="_blank" class="px-3 py-2 rounded-xl bg-rose-500/10 text-rose-600 text-[11px] font-black border border-rose-500/20">PDF 📄</a>`;
+                }
+            });
+            html += `</div>`;
+            return html;
+        }
+
+        function formatComplaintAuthor(c) {
+            if (!isAdmin()) return '';
+            if (!c.telegramUserId && !c.telegramUsername && !c.telegramDisplayName) {
+                return `<p class="text-[11px] text-slate-500 italic"><i class="fa-brands fa-telegram mr-1"></i> Автор: невідомий (відкрито не в Telegram)</p>`;
+            }
+            const un = c.telegramUsername ? '@' + c.telegramUsername.replace('@', '') : '';
+            const link = c.telegramUsername
+                ? `<a href="https://t.me/${c.telegramUsername.replace('@', '')}" target="_blank" class="underline">${un}</a>`
+                : '';
+            return `<p class="text-[11px] font-bold text-violet-600 dark:text-violet-400"><i class="fa-brands fa-telegram mr-1"></i> Автор: ${c.telegramDisplayName || '—'} ${link} <span class="text-slate-400 font-medium">(id: ${c.telegramUserId})</span></p>`;
+        }
+
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -658,7 +713,7 @@
 
         function updateAdminUI() {
             const adminBtns = [
-                'admin-add-goal-btn', 'admin-add-payment-btn', 'admin-add-expense-btn', 'admin-add-event-btn', 'admin-add-duty-btn', 'admin-edit-info-btn', 'admin-edit-rules-btn', 'admin-add-leader-btn'
+                'admin-add-goal-btn', 'admin-add-payment-btn', 'admin-add-expense-btn', 'admin-add-poll-btn', 'admin-add-event-btn', 'admin-add-duty-btn', 'admin-edit-info-btn', 'admin-edit-rules-btn', 'admin-add-leader-btn'
             ];
             adminBtns.forEach(id => {
                 const btn = document.getElementById(id);
@@ -729,6 +784,7 @@
             renderGoals(totalBalance);
             renderPayments();
             renderExpenses();
+            renderPolls();
             renderEvents();
             renderDuty();
             renderComplaints();
@@ -925,6 +981,96 @@
             });
         }
 
+        function renderPolls() {
+            const list = document.getElementById('list-polls');
+            if (!list) return;
+            list.innerHTML = '';
+            const tgUser = getTelegramUser();
+            if (!mockDB.polls || mockDB.polls.length === 0) {
+                list.innerHTML = `<p class="text-[14px] text-slate-500 dark:text-slate-400 text-center py-3 font-medium">Активних опитувань немає</p>`;
+                return;
+            }
+            mockDB.polls.forEach(p => {
+                const results = DormDatabase.getPollResults(p.id);
+                const myVote = tgUser ? DormDatabase.getUserVote(p.id, tgUser.id) : null;
+                const item = document.createElement('div');
+                item.className = 'p-4 diia-glass-card rounded-[24px] cascade-item space-y-3';
+                let optionsHTML = '';
+                p.options.forEach((label, idx) => {
+                    const r = results[idx] || { percent: 0, count: 0 };
+                    const voted = myVote === idx;
+                    const canVote = p.active && tgUser && myVote === null;
+                    optionsHTML += `
+                        <div class="space-y-1">
+                            <div class="flex justify-between items-center gap-2">
+                                ${canVote
+                                    ? `<button type="button" onclick="castPollVote('${p.id}', ${idx})" class="flex-1 text-left px-3 py-2 rounded-xl bg-white/60 dark:bg-slate-800/60 border border-violet-500/30 text-[13px] font-bold text-slate-800 dark:text-slate-100 btn-push">${label}</button>`
+                                    : `<span class="text-[13px] font-bold text-slate-800 dark:text-slate-100 flex-1">${label} ${voted ? '✓' : ''}</span>`
+                                }
+                                <span class="text-[11px] font-black text-violet-600">${r.percent}%</span>
+                            </div>
+                            <div class="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                                <div class="bg-violet-500 h-full rounded-full" style="width:${r.percent}%"></div>
+                            </div>
+                        </div>`;
+                });
+                if (!tgUser && p.active) {
+                    optionsHTML += `<p class="text-[11px] text-amber-600 font-bold">Відкрийте додаток у Telegram, щоб голосувати</p>`;
+                }
+                item.innerHTML = `
+                    <div class="flex justify-between items-start gap-2">
+                        <div>
+                            <h4 class="text-[15px] font-black text-slate-800 dark:text-slate-100">${p.title}</h4>
+                            <p class="text-[12px] text-slate-600 dark:text-slate-400 mt-1">${p.desc || ''}</p>
+                        </div>
+                        <span class="text-[10px] font-black uppercase px-2 py-1 rounded-lg ${p.active ? 'bg-emerald-500/10 text-emerald-600' : 'bg-slate-500/10 text-slate-500'}">${p.active ? 'Активне' : 'Закрите'}</span>
+                    </div>
+                    <div class="space-y-2">${optionsHTML}</div>
+                    ${isAdmin() ? `
+                        <div class="flex gap-2 justify-end pt-2 border-t border-slate-200/50 dark:border-slate-700/50">
+                            ${p.active ? `<button type="button" onclick="closePoll('${p.id}')" class="px-3 py-1.5 text-[11px] font-black rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 btn-push">Закрити</button>` : ''}
+                            <button type="button" onclick="handleItemDeletion('polls', '${p.id}')" class="px-3 py-1.5 text-[11px] font-black rounded-lg bg-rose-500/10 text-rose-600 btn-push">Видалити</button>
+                        </div>
+                    ` : ''}
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        async function castPollVote(pollId, optionIndex) {
+            const tg = getTelegramUser();
+            if (!tg) {
+                showToast('Голосування лише в Telegram', 'error');
+                return;
+            }
+            try {
+                document.getElementById('db-loading').classList.remove('hidden');
+                await DormDatabase.castVote(pollId, tg.id, optionIndex);
+                refreshMockDB();
+                renderPolls();
+                showToast('Ваш голос зараховано! 📊');
+            } catch (err) {
+                showToast(err.message || 'Помилка голосування', 'error');
+            } finally {
+                document.getElementById('db-loading').classList.add('hidden');
+            }
+        }
+
+        async function closePoll(pollId) {
+            if (!isAdmin()) return;
+            try {
+                document.getElementById('db-loading').classList.remove('hidden');
+                await DormDatabase.adminSave(currentAdminPassword, 'polls', 'close', { id: pollId });
+                refreshMockDB();
+                renderPolls();
+                showToast('Опитування закрито');
+            } catch (err) {
+                showToast(err.message || 'Помилка', 'error');
+            } finally {
+                document.getElementById('db-loading').classList.add('hidden');
+            }
+        }
+
         function renderComplaints() {
             const list = document.getElementById('list-complaints');
             list.innerHTML = '';
@@ -935,14 +1081,9 @@
             mockDB.complaints.forEach(c => {
                 const item = document.createElement('div');
                 item.className = 'p-4 space-y-3 cascade-item relative';
-                let photosHTML = '';
-                if (c.photosList && c.photosList.length > 0) {
-                    photosHTML = `<div class="flex gap-2 pt-1 pb-1 overflow-x-auto scrollbar-none">`;
-                    c.photosList.forEach((url, i) => {
-                        photosHTML += `<img src="${url}" class="w-12 h-12 object-cover rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer hover:scale-105 transition-transform" onclick="openLightbox('${url}', '${c.subject} - Доказ ${i+1}')">`;
-                    });
-                    photosHTML += `</div>`;
-                }
+                const att = c.attachments && c.attachments.length ? c.attachments : (c.photosList || []).map(u => ({ url: u, type: 'image' }));
+                const photosHTML = renderAttachmentsHtml(att, c.subject);
+                const authorHTML = formatComplaintAuthor(c);
                 item.innerHTML = `
                     <div class="flex justify-between items-start mb-1">
                         <div class="pr-6">
@@ -959,6 +1100,7 @@
                             ` : ''}
                         </div>
                     </div>
+                    ${authorHTML}
                     <p class="text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed font-medium bg-white/40 dark:bg-slate-800/40 p-2.5 rounded-xl border border-white/50 dark:border-slate-700/50">${c.desc}</p>
                     ${photosHTML}
                     ${isAdmin() && c.status !== 'Вирішено 🎉' ? `
@@ -1138,7 +1280,7 @@
                     </div>
                     <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1 block">Фото (Опціонально)</label>
-                        <input type="file" id="input-exp-files" accept="image/*" multiple class="w-full text-[13px] file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[13px] file:font-black file:bg-blue-500/10 file:text-blue-600 cursor-pointer">
+                        <input type="file" id="input-exp-files" accept="image/*,video/*,.pdf,application/pdf" multiple class="w-full text-[13px] file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[13px] file:font-black file:bg-blue-500/10 file:text-blue-600 cursor-pointer">
                     </div>
                 `;
             } else if (sheet === 'events') {
@@ -1214,6 +1356,22 @@
                     <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Telegram (@)</label>
                         <input type="text" id="input-lead-tg" value="${item ? item.tg : ''}" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all" placeholder="@username">
+                    </div>
+                `;
+            } else if (sheet === 'polls') {
+                title.innerText = '📊 Нове опитування';
+                fieldsContainer.innerHTML = `
+                    <div class="space-y-1">
+                        <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Питання</label>
+                        <input type="text" id="input-poll-title" required class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-slate-100">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Опис (необовʼязково)</label>
+                        <textarea id="input-poll-desc" rows="2" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-slate-100"></textarea>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Варіанти (кожен з нового рядка, мін. 2)</label>
+                        <textarea id="input-poll-options" rows="4" required placeholder="Так&#10;Ні&#10;Утриматись" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-slate-100"></textarea>
                     </div>
                 `;
             } else if (sheet === 'complaints') {
@@ -1400,10 +1558,15 @@
                 const subject = document.getElementById('compSubject').value;
                 const desc = document.getElementById('compDesc').value;
                 const fileInput = document.getElementById('compPhotoFile');
+                const tg = getTelegramUser();
+                if (!tg) {
+                    showToast('Надсилайте звернення з Telegram Mini App', 'error');
+                    return;
+                }
                 try {
                     document.getElementById('db-loading').classList.remove('hidden');
-                    const photoUrls = await DormDatabase.uploadPhotosFromInput(fileInput);
-                    await DormDatabase.insertComplaint({ subject, desc, photosList: photoUrls });
+                    const attachments = await DormDatabase.uploadFilesFromInput(fileInput, 'complaints');
+                    await DormDatabase.insertComplaint({ subject, desc, attachments, telegramUser: tg });
                     refreshMockDB();
                     renderAll();
                     document.getElementById('form-complaint').reset();
@@ -1454,14 +1617,27 @@
                         };
                     } else if (sheet === 'expenses') {
                         const fileInput = document.getElementById('input-exp-files');
-                        const photoUrls = await DormDatabase.uploadPhotosFromInput(fileInput);
+                        const files = await DormDatabase.uploadFilesFromInput(fileInput, 'expenses');
                         payload = {
                             id: 'ex_' + Date.now(),
                             title: document.getElementById('input-exp-title').value,
                             amount: Number(document.getElementById('input-exp-amount').value),
                             desc: document.getElementById('input-exp-desc').value,
                             date: new Date().toISOString().split('T')[0],
-                            photosList: photoUrls
+                            photosList: files.filter(f => f.type === 'image').map(f => f.url)
+                        };
+                    } else if (sheet === 'polls') {
+                        const optsRaw = document.getElementById('input-poll-options').value.split('\n').map(s => s.trim()).filter(Boolean);
+                        if (optsRaw.length < 2) {
+                            showToast('Додайте щонайменше 2 варіанти', 'error');
+                            document.getElementById('db-loading').classList.add('hidden');
+                            return;
+                        }
+                        payload = {
+                            id: 'poll_' + Date.now(),
+                            title: document.getElementById('input-poll-title').value,
+                            desc: document.getElementById('input-poll-desc').value,
+                            options: optsRaw
                         };
                     } else if (sheet === 'events') {
                         payload = {
@@ -1511,6 +1687,7 @@
             document.getElementById('admin-add-goal-btn').addEventListener('click', () => openCrudForm('goals', 'add'));
             document.getElementById('admin-add-payment-btn').addEventListener('click', () => openCrudForm('payments', 'add'));
             document.getElementById('admin-add-expense-btn').addEventListener('click', () => openCrudForm('expenses', 'add'));
+            document.getElementById('admin-add-poll-btn').addEventListener('click', () => openCrudForm('polls', 'add'));
             document.getElementById('admin-add-event-btn').addEventListener('click', () => openCrudForm('events', 'add'));
             document.getElementById('admin-add-duty-btn').addEventListener('click', () => openCrudForm('duty', 'add'));
             document.getElementById('admin-add-leader-btn').addEventListener('click', () => openCrudForm('leaders', 'add'));
