@@ -231,10 +231,13 @@
     async function notifyPush(title, message, options) {
         const url = global.NOTIFY_API_URL;
         const secret = global.NOTIFY_SECRET;
-        if (!url || !secret) return;
+        if (!url || !secret) {
+            console.warn('Push вимкнено: немає NOTIFY_API_URL або NOTIFY_SECRET у config.public.js');
+            return { ok: false, reason: 'no_config' };
+        }
         const opts = options || {};
         try {
-            await fetch(url, {
+            const res = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -246,8 +249,25 @@
                     target_tg_id: opts.targetTgId || null,
                 }),
             });
+            let data = {};
+            try {
+                data = await res.json();
+            } catch (_) {
+                data = {};
+            }
+            if (!res.ok) {
+                console.warn('Push помилка', res.status, data);
+                return { ok: false, status: res.status, data };
+            }
+            if (data.total === 0) {
+                console.warn('Push: немає підписників бота (/start)');
+            } else if (data.sent === 0) {
+                console.warn('Push: 0 надіслано', data);
+            }
+            return { ok: true, ...data };
         } catch (e) {
-            console.warn('Push не надіслано', e);
+            console.warn('Push не надіслано (мережа/CORS?)', e);
+            return { ok: false, reason: 'network', error: e.message };
         }
     }
 
