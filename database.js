@@ -50,7 +50,16 @@
             case 'events':
                 return { id: row.id, title: row.title, desc: row.description, date: row.date, time: row.time, location: row.location };
             case 'duty':
-                return { id: row.id, floor: row.floor, wing: row.wing, room: row.room, date: row.date };
+                return {
+                    id: row.id,
+                    floor: row.floor,
+                    wing: row.wing,
+                    room: row.room,
+                    date: row.date,
+                    dutyTime: row.duty_time || '22:00',
+                    sanitaryStatus: row.sanitary_status || 'pending',
+                    sanitaryComment: row.sanitary_comment || '',
+                };
             case 'leaders':
                 return { id: row.id, role: row.role, name: row.name, phone: row.phone || '', tg: row.tg || '', room: row.room || '' };
             case 'complaints':
@@ -199,51 +208,51 @@
     }
 
     async function getBotPushEnabled(adminPassword) {
-        const s = await getPushSettings(adminPassword);
-        return s.mode !== 'off';
+        const sb = getClient();
+        const { data, error } = await sb.rpc('admin_get_bot_push_enabled', { p_password: adminPassword });
+        if (error) throw error;
+        return !!data;
     }
 
     async function setBotPushEnabled(adminPassword, enabled) {
-        return setPushSettings(adminPassword, { mode: enabled ? 'all' : 'off' });
-    }
-
-    async function getPushSettings(adminPassword) {
         const sb = getClient();
-        const { data, error } = await sb.rpc('admin_get_push_settings', { p_password: adminPassword });
-        if (error) throw error;
-        const raw = data || {};
-        return {
-            mode: raw.mode || 'all',
-            adminTelegramId: raw.admin_telegram_id || '',
-            adminSkipPush: raw.admin_skip_push !== false,
-            dutyRemindersEnabled: raw.duty_reminders_enabled !== false,
-        };
-    }
-
-    async function setPushSettings(adminPassword, settings) {
-        const sb = getClient();
-        const { data, error } = await sb.rpc('admin_set_push_settings', {
+        const { data, error } = await sb.rpc('admin_set_bot_push_enabled', {
             p_password: adminPassword,
-            p_mode: settings.mode != null ? settings.mode : null,
-            p_admin_telegram_id: settings.adminTelegramId != null ? String(settings.adminTelegramId) : null,
-            p_admin_skip_push: settings.adminSkipPush != null ? !!settings.adminSkipPush : null,
-            p_duty_reminders_enabled: settings.dutyRemindersEnabled != null ? !!settings.dutyRemindersEnabled : null,
+            p_enabled: !!enabled,
         });
         if (error) throw error;
-        const raw = data || {};
-        return {
-            mode: raw.mode || 'all',
-            adminTelegramId: raw.admin_telegram_id || '',
-            adminSkipPush: raw.admin_skip_push !== false,
-            dutyRemindersEnabled: raw.duty_reminders_enabled !== false,
-        };
+        return !!data;
     }
 
-    async function getActivityStats(adminPassword) {
+    async function getUsersDashboard(adminPassword) {
         const sb = getClient();
-        const { data, error } = await sb.rpc('admin_get_activity_stats', { p_password: adminPassword });
+        const { data, error } = await sb.rpc('admin_get_users_dashboard', { p_password: adminPassword });
         if (error) throw error;
-        return data || { unique_users_7d: 0, total_visits_7d: 0, by_day: [] };
+        return (
+            data || {
+                notifications_enabled: true,
+                registered_count: 0,
+                online_count: 0,
+                registered: [],
+                online_now: [],
+                unique_users_7d: 0,
+                total_visits_7d: 0,
+                by_day: [],
+            }
+        );
+    }
+
+    async function updateDutySanitary(adminPassword, dutyId, { status, comment, dutyTime }) {
+        const sb = getClient();
+        const { error } = await sb.rpc('admin_update_duty_sanitary', {
+            p_password: adminPassword,
+            p_id: dutyId,
+            p_status: status,
+            p_comment: comment != null ? comment : null,
+            p_duty_time: dutyTime != null ? dutyTime : null,
+        });
+        if (error) throw error;
+        await loadDB();
     }
 
     async function uploadPhotosFromInput(fileInput) {
@@ -276,7 +285,7 @@
         return out;
     }
 
-    let pushModeCache = 'all';
+    let notificationsEnabledCache = true;
 
     async function notifyPush(title, message, options) {
         const url = global.NOTIFY_API_URL;
@@ -285,11 +294,11 @@
             console.warn('Push вимкнено: немає NOTIFY_API_URL або NOTIFY_SECRET у config.public.js');
             return { ok: false, reason: 'no_config' };
         }
-        const opts = options || {};
-        if (pushModeCache === 'off' && !opts.targetTgId) {
-            console.warn('Push пропущено: режим off');
-            return { ok: true, skipped: true, reason: 'admin_disabled' };
+        if (!notificationsEnabledCache) {
+            console.warn('Push пропущено: сповіщення вимкнено');
+            return { ok: true, skipped: true, reason: 'notifications_disabled' };
         }
+        const opts = options || {};
         try {
             const res = await fetch(url, {
                 method: 'POST',
@@ -454,11 +463,13 @@
                 p_wing: payload.wing,
                 p_room: payload.room,
                 p_date: payload.date,
+                p_duty_time: payload.dutyTime || '22:00',
             });
             if (error) throw error;
+            const t = payload.dutyTime || '22:00';
             await notifyPush(
                 '🧹 Чергування',
-                `${payload.date}: поверх ${payload.floor}, ${payload.wing} крило, кімн. ${payload.room}`
+                `${payload.date} о ${t}: поверх ${payload.floor}, ${payload.wing} крило, кімн. ${payload.room}`
             );
         } else if (sheet === 'leaders') {
             const { error } = await sb.rpc('admin_upsert_leader', {
@@ -525,14 +536,13 @@
         listBotVisitors,
         getBotPushEnabled,
         setBotPushEnabled,
-        getPushSettings,
-        setPushSettings,
-        getActivityStats,
-        setPushModeCache: (mode) => {
-            pushModeCache = mode === 'off' || mode === 'test' || mode === 'all' ? mode : 'all';
+        getUsersDashboard,
+        updateDutySanitary,
+        setNotificationsEnabledCache: (enabled) => {
+            notificationsEnabledCache = !!enabled;
         },
         setBotPushEnabledCache: (enabled) => {
-            pushModeCache = enabled ? 'all' : 'off';
+            notificationsEnabledCache = !!enabled;
         },
         uploadPhotosFromInput,
         uploadFilesFromInput,

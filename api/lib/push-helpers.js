@@ -75,7 +75,7 @@ export async function sendPushMessages({ title, message, targetTgId, forceBroadc
       sent: 0,
       total: 0,
       skipped: true,
-      hint: 'Push вимкнено (режим off)',
+      hint: 'Сповіщення вимкнено для всіх',
     };
   }
 
@@ -103,7 +103,7 @@ export async function sendPushMessages({ title, message, targetTgId, forceBroadc
     total: chatIds.length,
     hint:
       chatIds.length === 0
-        ? 'Немає одержувачів (перевірте режим push і /start у боті)'
+        ? 'Немає підписників — потрібен /start у боті або сповіщення вимкнені'
         : sent === 0
           ? 'Одержувачі є, але Telegram не прийняв повідомлення'
           : undefined,

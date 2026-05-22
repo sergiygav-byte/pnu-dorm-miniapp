@@ -1,12 +1,22 @@
 /**
- * Щоденне нагадування про санітарку на завтра (Europe/Kyiv).
- * Vercel Cron + CRON_SECRET у Environment Variables.
+ * Нагадування про санітарку вранці в день чергування (Europe/Kyiv).
  */
 
 import { sendPushMessages, supabaseRpc } from './lib/push-helpers.js';
 
 function formatDutyLine(d) {
-  return `• Поверх ${d.floor}, ${d.wing} крило, кімн. ${d.room}`;
+  const t = d.duty_time || '22:00';
+  return `• Поверх ${d.floor}, ${d.wing} крило, кімн. ${d.room} — о ${t}`;
+}
+
+function formatUkrDate(isoDate) {
+  try {
+    const [y, m, day] = isoDate.split('-').map(Number);
+    const months = ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'];
+    return `${day} ${months[m - 1]}`;
+  } catch (_) {
+    return isoDate;
+  }
 }
 
 export default async function handler(req, res) {
@@ -33,34 +43,36 @@ export default async function handler(req, res) {
       return res.status(200).json({
         ok: true,
         skipped: true,
-        hint: 'Нагадування вимкнено, push off, або вже надіслано на цю дату',
+        hint: 'Сповіщення вимкнені, нагадування вимкнені, або вже надіслано на сьогодні',
       });
     }
 
-    const duties = await supabaseRpc('get_duty_sanitary_tomorrow_kyiv');
+    const duties = await supabaseRpc('get_duty_sanitary_today_kyiv');
     const list = Array.isArray(duties) ? duties : [];
     if (!list.length) {
-      return res.status(200).json({ ok: true, skipped: true, hint: 'Немає чергувань на завтра' });
+      return res.status(200).json({ ok: true, skipped: true, hint: 'Немає чергувань на сьогодні' });
     }
 
-    const tomorrow = list[0]?.date || 'завтра';
+    const todayIso = list[0]?.date || new Date().toISOString().slice(0, 10);
+    const todayLabel = formatUkrDate(todayIso);
     const lines = list.map(formatDutyLine).join('\n');
-    const message = `Завтра (${tomorrow}) санітарне чергування:\n\n${lines}\n\nПеревірте розклад у додатку → вкладка «Інфо».`;
+    const message = `Сьогодні, <b>${todayLabel}</b>, санітарне чергування:\n\n${lines}\n\nДеталі у додатку → вкладка «Інфо» / чергування.`;
 
     const result = await sendPushMessages({
-      title: '🧹 Нагадування: санітарка',
+      title: '🧹 Нагадування: санітарка сьогодні',
       message,
       targetTgId: null,
       forceBroadcast: true,
     });
 
     if (result.sent > 0 || result.total === 0) {
-      await supabaseRpc('mark_duty_reminder_sent_today');
+      await supabaseRpc('mark_duty_reminders_sent_today');
     }
 
     return res.status(200).json({
       ok: true,
       duties: list.length,
+      date: todayIso,
       ...result,
     });
   } catch (err) {
