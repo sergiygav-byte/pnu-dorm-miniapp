@@ -971,13 +971,32 @@
             });
         }
 
-        function changeComplaintStatus(id, newStatus) {
-            let item = mockDB.complaints.find(x => x.id === id);
-            if (item) {
-                item.status = newStatus;
-                syncDB();
+        async function changeComplaintStatus(id, newStatus) {
+            if (!isAdmin()) {
+                showToast('Потрібен вхід адміністратора', 'error');
+                return;
+            }
+            const item = mockDB.complaints.find(x => x.id === id);
+            if (!item) {
+                showToast('Звернення не знайдено', 'error');
+                return;
+            }
+            try {
+                document.getElementById('db-loading').classList.remove('hidden');
+                await DormDatabase.adminSave(currentAdminPassword, 'complaints', 'edit', {
+                    id: item.id,
+                    subject: item.subject,
+                    desc: item.desc,
+                    status: newStatus
+                });
+                refreshMockDB();
                 renderAll();
                 showToast('Статус звернення оновлено!');
+            } catch (err) {
+                console.error(err);
+                showToast(err.message || 'Помилка оновлення статусу', 'error');
+            } finally {
+                document.getElementById('db-loading').classList.add('hidden');
             }
         }
 
