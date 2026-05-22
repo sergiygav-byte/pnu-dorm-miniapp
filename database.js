@@ -96,13 +96,29 @@
         }
     }
 
-    function fileKind(file) {
+    function isVideoFile(file) {
         const t = (file.type || '').toLowerCase();
         const n = (file.name || '').toLowerCase();
-        if (t.startsWith('image/')) return 'image';
-        if (t.startsWith('video/')) return 'video';
+        return (
+            t.startsWith('video/') ||
+            /\.(mp4|mov|webm|avi|mkv|m4v|3gp|wmv|flv|mpeg|mpg)$/i.test(n)
+        );
+    }
+
+    function fileKind(file) {
+        if (isVideoFile(file)) {
+            throw new Error(`Файл «${file.name}» не приймається. Дозволені лише фото та PDF.`);
+        }
+        const t = (file.type || '').toLowerCase();
+        const n = (file.name || '').toLowerCase();
+        if (t.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i.test(n)) return 'image';
         if (t === 'application/pdf' || n.endsWith('.pdf')) return 'pdf';
-        return 'file';
+        throw new Error(`Файл «${file.name}» не підтримується. Дозволені лише фото та PDF.`);
+    }
+
+    function validateFileInput(fileInput) {
+        if (!fileInput?.files?.length) return;
+        Array.from(fileInput.files).forEach((file) => fileKind(file));
     }
 
     async function loadDB() {
@@ -262,6 +278,7 @@
 
     async function uploadFilesFromInput(fileInput, folder = 'uploads') {
         if (!fileInput || !fileInput.files || fileInput.files.length === 0) return [];
+        validateFileInput(fileInput);
         const sb = getClient();
         const out = [];
         const files = Array.from(fileInput.files);
@@ -544,6 +561,7 @@
         setBotPushEnabledCache: (enabled) => {
             notificationsEnabledCache = !!enabled;
         },
+        validateFileInput,
         uploadPhotosFromInput,
         uploadFilesFromInput,
         deleteRow,
