@@ -198,6 +198,54 @@
         return Array.isArray(data) ? data : [];
     }
 
+    async function getBotPushEnabled(adminPassword) {
+        const s = await getPushSettings(adminPassword);
+        return s.mode !== 'off';
+    }
+
+    async function setBotPushEnabled(adminPassword, enabled) {
+        return setPushSettings(adminPassword, { mode: enabled ? 'all' : 'off' });
+    }
+
+    async function getPushSettings(adminPassword) {
+        const sb = getClient();
+        const { data, error } = await sb.rpc('admin_get_push_settings', { p_password: adminPassword });
+        if (error) throw error;
+        const raw = data || {};
+        return {
+            mode: raw.mode || 'all',
+            adminTelegramId: raw.admin_telegram_id || '',
+            adminSkipPush: raw.admin_skip_push !== false,
+            dutyRemindersEnabled: raw.duty_reminders_enabled !== false,
+        };
+    }
+
+    async function setPushSettings(adminPassword, settings) {
+        const sb = getClient();
+        const { data, error } = await sb.rpc('admin_set_push_settings', {
+            p_password: adminPassword,
+            p_mode: settings.mode != null ? settings.mode : null,
+            p_admin_telegram_id: settings.adminTelegramId != null ? String(settings.adminTelegramId) : null,
+            p_admin_skip_push: settings.adminSkipPush != null ? !!settings.adminSkipPush : null,
+            p_duty_reminders_enabled: settings.dutyRemindersEnabled != null ? !!settings.dutyRemindersEnabled : null,
+        });
+        if (error) throw error;
+        const raw = data || {};
+        return {
+            mode: raw.mode || 'all',
+            adminTelegramId: raw.admin_telegram_id || '',
+            adminSkipPush: raw.admin_skip_push !== false,
+            dutyRemindersEnabled: raw.duty_reminders_enabled !== false,
+        };
+    }
+
+    async function getActivityStats(adminPassword) {
+        const sb = getClient();
+        const { data, error } = await sb.rpc('admin_get_activity_stats', { p_password: adminPassword });
+        if (error) throw error;
+        return data || { unique_users_7d: 0, total_visits_7d: 0, by_day: [] };
+    }
+
     async function uploadPhotosFromInput(fileInput) {
         const files = await uploadFilesFromInput(fileInput);
         return files.filter((f) => f.type === 'image').map((f) => f.url);
@@ -228,6 +276,8 @@
         return out;
     }
 
+    let pushModeCache = 'all';
+
     async function notifyPush(title, message, options) {
         const url = global.NOTIFY_API_URL;
         const secret = global.NOTIFY_SECRET;
@@ -236,6 +286,10 @@
             return { ok: false, reason: 'no_config' };
         }
         const opts = options || {};
+        if (pushModeCache === 'off' && !opts.targetTgId) {
+            console.warn('Push пропущено: режим off');
+            return { ok: true, skipped: true, reason: 'admin_disabled' };
+        }
         try {
             const res = await fetch(url, {
                 method: 'POST',
@@ -469,6 +523,17 @@
         verifyAdmin,
         trackWebAppVisit,
         listBotVisitors,
+        getBotPushEnabled,
+        setBotPushEnabled,
+        getPushSettings,
+        setPushSettings,
+        getActivityStats,
+        setPushModeCache: (mode) => {
+            pushModeCache = mode === 'off' || mode === 'test' || mode === 'all' ? mode : 'all';
+        },
+        setBotPushEnabledCache: (enabled) => {
+            pushModeCache = enabled ? 'all' : 'off';
+        },
         uploadPhotosFromInput,
         uploadFilesFromInput,
         deleteRow,

@@ -482,9 +482,36 @@
                     <div class="flex justify-between items-center gap-2">
                         <div>
                             <h2 class="text-[12px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">Користувачі бота 🔐</h2>
-                            <p class="text-[11px] text-slate-500 mt-0.5">Хто натискав /start і відкривав Mini App (лише для адміна)</p>
+                            <p class="text-[11px] text-slate-500 mt-0.5">/start, відкриття Mini App і остання активність</p>
                         </div>
                         <button type="button" id="admin-refresh-visitors-btn" class="px-3 py-1.5 bg-amber-500/20 text-amber-800 dark:text-amber-300 rounded-xl text-[11px] font-black uppercase btn-push border border-amber-400/30">Оновити</button>
+                    </div>
+                    <div class="space-y-3 p-3 rounded-xl bg-amber-500/10 border border-amber-400/30">
+                        <p class="text-[12px] font-black text-amber-900 dark:text-amber-200">Режим сповіщень у Telegram</p>
+                        <select id="admin-push-mode" class="w-full px-3 py-2 text-[13px] rounded-xl border border-amber-300/50 dark:border-amber-600/50 bg-white/80 dark:bg-slate-800/80 font-bold">
+                            <option value="all">Усім підписникам (/start)</option>
+                            <option value="test">Тест — лише адміну</option>
+                            <option value="off">Вимкнено (без спаму)</option>
+                        </select>
+                        <p id="admin-push-mode-hint" class="text-[11px] text-slate-500"></p>
+                        <div class="flex gap-2">
+                            <input type="text" id="admin-telegram-id" inputmode="numeric" placeholder="Telegram ID адміна" class="flex-1 px-3 py-2 text-[13px] rounded-xl border border-slate-300/50 dark:border-slate-600 bg-white/80 dark:bg-slate-800/80">
+                            <button type="button" id="admin-use-my-tg-id" class="px-3 py-2 bg-amber-600 text-white rounded-xl text-[11px] font-black uppercase btn-push shrink-0">Мій ID</button>
+                        </div>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="admin-skip-push" class="w-4 h-4 accent-amber-600" checked>
+                            <span class="text-[12px] text-slate-700 dark:text-slate-200">Не надсилати push мені (адміну)</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="admin-duty-reminders" class="w-4 h-4 accent-amber-600" checked>
+                            <span class="text-[12px] text-slate-700 dark:text-slate-200">Автонагадування про санітарку (завтра, ~09:00)</span>
+                        </label>
+                        <button type="button" id="admin-save-push-settings" class="w-full py-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl text-[12px] font-black uppercase btn-push">Зберегти налаштування push</button>
+                    </div>
+                    <div id="admin-activity-stats" class="p-3 rounded-xl bg-blue-500/10 border border-blue-400/30 text-[12px] space-y-2 hidden">
+                        <p class="font-black text-blue-800 dark:text-blue-300 uppercase tracking-wider text-[11px]">Активність Mini App (7 днів)</p>
+                        <p id="admin-activity-summary" class="text-slate-600 dark:text-slate-300"></p>
+                        <div id="admin-activity-by-day" class="space-y-1 max-h-32 overflow-y-auto scrollbar-none"></div>
                     </div>
                     <div id="list-bot-visitors" class="space-y-2 max-h-64 overflow-y-auto scrollbar-none"></div>
                 </section>
@@ -747,6 +774,101 @@
         }
         window.submitComplaintComment = submitComplaintComment;
 
+        function updatePushModeHint(mode) {
+            const hint = document.getElementById('admin-push-mode-hint');
+            if (!hint) return;
+            const hints = {
+                all: 'Усі з /start отримують push (адміна можна виключити нижче).',
+                test: 'Push лише на Telegram ID адміна — зручно для перевірки.',
+                off: 'Ніхто не отримує масових push (окрім особистих відповідей на звернення).',
+            };
+            hint.textContent = hints[mode] || hints.all;
+        }
+
+        function applyPushSettingsUI(s) {
+            const modeEl = document.getElementById('admin-push-mode');
+            const tgEl = document.getElementById('admin-telegram-id');
+            const skipEl = document.getElementById('admin-skip-push');
+            const dutyEl = document.getElementById('admin-duty-reminders');
+            if (modeEl) modeEl.value = s.mode || 'all';
+            if (tgEl) tgEl.value = s.adminTelegramId || '';
+            if (skipEl) skipEl.checked = s.adminSkipPush !== false;
+            if (dutyEl) dutyEl.checked = s.dutyRemindersEnabled !== false;
+            DormDatabase.setPushModeCache(s.mode || 'all');
+            updatePushModeHint(s.mode || 'all');
+        }
+
+        async function loadBotPushSetting() {
+            if (!isAdmin() || !currentAdminPassword) return;
+            try {
+                const s = await DormDatabase.getPushSettings(currentAdminPassword);
+                applyPushSettingsUI(s);
+            } catch (e) {
+                console.warn('getPushSettings', e);
+            }
+        }
+
+        async function savePushSettingsFromUI() {
+            if (!isAdmin() || !currentAdminPassword) {
+                showToast('Потрібен вхід адміністратора', 'error');
+                return;
+            }
+            const mode = document.getElementById('admin-push-mode')?.value || 'all';
+            const adminTelegramId = (document.getElementById('admin-telegram-id')?.value || '').trim();
+            const adminSkipPush = !!document.getElementById('admin-skip-push')?.checked;
+            const dutyRemindersEnabled = !!document.getElementById('admin-duty-reminders')?.checked;
+            if (mode === 'test' && !adminTelegramId) {
+                showToast('Для тестового режиму вкажіть Telegram ID адміна', 'error');
+                return;
+            }
+            try {
+                const s = await DormDatabase.setPushSettings(currentAdminPassword, {
+                    mode,
+                    adminTelegramId,
+                    adminSkipPush,
+                    dutyRemindersEnabled,
+                });
+                applyPushSettingsUI(s);
+                showToast('Налаштування push збережено ✅');
+            } catch (err) {
+                showToast(err.message || 'Помилка збереження', 'error');
+            }
+        }
+
+        async function renderActivityStats() {
+            const box = document.getElementById('admin-activity-stats');
+            const summary = document.getElementById('admin-activity-summary');
+            const byDay = document.getElementById('admin-activity-by-day');
+            if (!box || !isAdmin() || !currentAdminPassword) {
+                if (box) box.classList.add('hidden');
+                return;
+            }
+            box.classList.remove('hidden');
+            try {
+                const stats = await DormDatabase.getActivityStats(currentAdminPassword);
+                const u = stats.unique_users_7d ?? 0;
+                const v = stats.total_visits_7d ?? 0;
+                summary.textContent = `Унікальних користувачів: ${u} · Відкриттів: ${v}`;
+                const days = stats.by_day || [];
+                if (!days.length) {
+                    byDay.innerHTML = '<p class="text-slate-400 italic">Поки немає даних (відкрийте додаток у Telegram)</p>';
+                    return;
+                }
+                byDay.innerHTML = days
+                    .map(
+                        (d) =>
+                            `<div class="flex justify-between text-[11px] py-1 border-b border-blue-200/30 dark:border-blue-800/30">
+                                <span>${escapeHtml(d.day)}</span>
+                                <span class="font-bold">${d.unique_users} корист. · ${d.visits} відкр.</span>
+                            </div>`
+                    )
+                    .join('');
+            } catch (e) {
+                summary.textContent = 'Помилка завантаження статистики';
+                byDay.innerHTML = '';
+            }
+        }
+
         async function renderBotVisitors() {
             const panel = document.getElementById('admin-bot-visitors-panel');
             const list = document.getElementById('list-bot-visitors');
@@ -756,23 +878,34 @@
                 return;
             }
             panel.classList.remove('hidden');
+            await loadBotPushSetting();
+            await renderActivityStats();
             list.innerHTML = '<p class="text-[12px] text-slate-500 italic text-center py-2">Завантаження...</p>';
             try {
                 const rows = await DormDatabase.listBotVisitors(currentAdminPassword);
                 if (!rows.length) {
-                    list.innerHTML = '<p class="text-[12px] text-slate-500 italic text-center py-3">Поки ніхто не натискав /start у боті</p>';
+                    list.innerHTML = '<p class="text-[12px] text-slate-500 italic text-center py-3">Поки немає відвідувачів бота / Mini App</p>';
                     return;
                 }
                 list.innerHTML = '';
                 rows.forEach((r) => {
                     const nick = r.username ? '@' + r.username : '(без @username)';
                     const name = [r.first_name, r.last_name].filter(Boolean).join(' ') || '—';
+                    const badges = [];
+                    if (r.has_start) badges.push('<span class="px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[10px] font-black">/start</span>');
+                    if (r.has_webapp) badges.push('<span class="px-1.5 py-0.5 rounded-md bg-blue-500/15 text-blue-700 dark:text-blue-300 text-[10px] font-black">Mini App</span>');
+                    if (!r.has_start && r.has_webapp) badges.push('<span class="px-1.5 py-0.5 rounded-md bg-slate-500/15 text-slate-600 dark:text-slate-300 text-[10px] font-black">без push</span>');
+                    const lastLabel = formatDateTime(r.last_activity || r.last_webapp_at || r.last_seen_at);
                     const item = document.createElement('div');
                     item.className = 'p-3 rounded-xl bg-white/50 dark:bg-slate-800/50 border border-white/60 dark:border-slate-700/50 text-[12px]';
                     item.innerHTML = `
-                        <div class="font-black text-slate-800 dark:text-slate-100">${escapeHtml(nick)}</div>
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <span class="font-black text-slate-800 dark:text-slate-100">${escapeHtml(nick)}</span>
+                            ${badges.join('')}
+                        </div>
                         <div class="text-slate-600 dark:text-slate-300 mt-0.5">${escapeHtml(name)} <span class="text-slate-400">· ID ${escapeHtml(r.telegram_user_id || '—')}</span></div>
                         <div class="mt-2 grid grid-cols-1 gap-1 text-slate-500">
+                            <span><i class="fa-solid fa-clock mr-1"></i>Остання активність: ${lastLabel}</span>
                             <span><i class="fa-brands fa-telegram mr-1"></i>/start: ${formatDateTime(r.last_seen_at)}</span>
                             <span><i class="fa-solid fa-mobile-screen mr-1"></i>Mini App: ${formatDateTime(r.last_webapp_at)}</span>
                         </div>
@@ -1582,6 +1715,21 @@
             document.getElementById('welcome-start-btn').addEventListener('click', closeWelcomeInstruction);
             document.getElementById('re-open-onboarding-btn').addEventListener('click', () => openWelcomeInstruction(true));
             document.getElementById('admin-refresh-visitors-btn')?.addEventListener('click', () => renderBotVisitors());
+            document.getElementById('admin-save-push-settings')?.addEventListener('click', () => savePushSettingsFromUI());
+            document.getElementById('admin-push-mode')?.addEventListener('change', (e) => {
+                updatePushModeHint(e.target.value);
+                DormDatabase.setPushModeCache(e.target.value);
+            });
+            document.getElementById('admin-use-my-tg-id')?.addEventListener('click', () => {
+                const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
+                if (!u?.id) {
+                    showToast('Відкрийте додаток у Telegram, щоб підставити ID', 'error');
+                    return;
+                }
+                const el = document.getElementById('admin-telegram-id');
+                if (el) el.value = String(u.id);
+                showToast('ID підставлено: ' + u.id);
+            });
 
             document.getElementById('confirm-cancel-btn').addEventListener('click', () => {
                 document.getElementById('modal-custom-confirm').classList.add('hidden'); confirmCallback = null;
