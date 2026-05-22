@@ -7,7 +7,7 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.public.js"></script>
-    <script src="database.js"></script>
+    <script src="database.js?v=20260523-no-video"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
@@ -433,9 +433,9 @@
                     </div>
                     <div class="space-y-1.5">
                         <label class="text-[12px] font-black text-slate-500 dark:text-slate-400 block uppercase tracking-wider pl-1">Файли (за бажанням)</label>
-                        <p class="text-[11px] text-slate-500 pl-1 mb-1">Фото, PDF або відео — необовʼязково</p>
+                        <p class="text-[11px] text-slate-500 pl-1 mb-1">Фото або PDF — за бажанням</p>
                         <div class="relative bg-white/70 dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-600 rounded-2xl p-2 hover:border-rose-400 dark:hover:border-rose-500 transition-colors">
-                            <input type="file" id="compPhotoFile" accept="image/*,video/*,.pdf,application/pdf" multiple class="w-full text-[13px] font-medium text-slate-600 dark:text-slate-300 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[13px] file:font-black file:bg-rose-500/10 file:text-rose-600 dark:file:text-rose-400 file:cursor-pointer hover:file:bg-rose-500/20 file:transition-colors cursor-pointer">
+                            <input type="file" id="compPhotoFile" accept="image/*,.pdf,application/pdf" multiple class="w-full text-[13px] font-medium text-slate-600 dark:text-slate-300 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[13px] file:font-black file:bg-rose-500/10 file:text-rose-600 dark:file:text-rose-400 file:cursor-pointer hover:file:bg-rose-500/20 file:transition-colors cursor-pointer">
                         </div>
                     </div>
                     <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-rose-600 to-red-500 text-white font-black rounded-2xl text-[15px] btn-push shadow-lg shadow-rose-500/30 uppercase tracking-wide mt-2">Надіслати звернення</button>
@@ -922,8 +922,6 @@
                 const safeUrl = escapeAttr(url);
                 if (type === 'image') {
                     html += `<img src="${safeUrl}" class="w-14 h-14 object-cover rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer shadow-sm" onclick="openLightbox('${safeUrl}', '${cap}')">`;
-                } else if (type === 'video') {
-                    html += `<a href="${safeUrl}" target="_blank" class="w-14 h-14 rounded-xl bg-slate-800 text-white flex items-center justify-center text-[10px] font-black border border-slate-600">VIDEO</a>`;
                 } else {
                     html += `<a href="${safeUrl}" target="_blank" class="px-3 py-2 rounded-xl bg-rose-500/10 text-rose-600 text-[11px] font-black border border-rose-500/20">PDF 📄</a>`;
                 }
@@ -1546,8 +1544,8 @@
                         <textarea id="input-exp-desc" rows="2" required class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all"></textarea>
                     </div>
                     <div class="space-y-1">
-                        <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1 block">Фото (Опціонально)</label>
-                        <input type="file" id="input-exp-files" accept="image/*,video/*,.pdf,application/pdf" multiple class="w-full text-[13px] file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[13px] file:font-black file:bg-blue-500/10 file:text-blue-600 cursor-pointer">
+                        <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1 block">Фото або PDF</label>
+                        <input type="file" id="input-exp-files" accept="image/*,.pdf,application/pdf" multiple class="w-full text-[13px] file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[13px] file:font-black file:bg-blue-500/10 file:text-blue-600 cursor-pointer">
                     </div>
                 `;
             } else if (sheet === 'events') {
@@ -1860,6 +1858,17 @@
 
             document.getElementById('lightbox-close-btn').addEventListener('click', () => { document.getElementById('lightbox-modal').classList.add('hidden'); });
 
+            document.addEventListener('change', function (e) {
+                if (e.target?.id === 'compPhotoFile' || e.target?.id === 'input-exp-files') {
+                    try {
+                        DormDatabase.validateFileInput(e.target);
+                    } catch (err) {
+                        showToast(err.message, 'error');
+                        e.target.value = '';
+                    }
+                }
+            });
+
             document.getElementById('form-complaint').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 const subject = document.getElementById('compSubject').value;
@@ -1872,6 +1881,7 @@
                 }
                 try {
                     document.getElementById('db-loading').classList.remove('hidden');
+                    DormDatabase.validateFileInput(fileInput);
                     const attachments = await DormDatabase.uploadFilesFromInput(fileInput, 'complaints');
                     await DormDatabase.insertComplaint({ subject, desc, attachments, telegramUser: tg });
                     refreshMockDB();
