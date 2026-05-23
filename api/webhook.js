@@ -52,9 +52,13 @@ async function isSubscriberBlocked(message) {
   return (await res.json()) === true;
 }
 
-const WEBAPP_URL =
+const APP_BUILD = process.env.APP_BUILD || '20260525a';
+const WEBAPP_BASE =
   process.env.WEBAPP_URL ||
   'https://sergiygav-byte.github.io/pnu-dorm-miniapp/index.html';
+const WEBAPP_URL = WEBAPP_BASE.includes('?')
+  ? `${WEBAPP_BASE}&b=${APP_BUILD}`
+  : `${WEBAPP_BASE}?b=${APP_BUILD}`;
 
 const WELCOME_TEXT = `🏫 <b>Гуртожиток №1 ПНУ</b>
 

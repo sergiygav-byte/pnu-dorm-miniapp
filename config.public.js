@@ -9,3 +9,6 @@ window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
 // Push у Telegram (той самий секрет, що NOTIFY_SECRET на Vercel)
 window.NOTIFY_API_URL = 'https://pnu-dorm-miniapp.vercel.app/api/notify';
 window.NOTIFY_SECRET = 'admin1177';
+
+// Змінюйте після кожного оновлення сайту — Telegram підхопить нову версію (?b=...)
+window.APP_BUILD = '20260525a';

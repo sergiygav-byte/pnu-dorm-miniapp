@@ -451,6 +451,16 @@
         }
     }
 
+    async function reorderLeaders(adminPassword, orderedIds) {
+        const sb = getClient();
+        const { error } = await sb.rpc('admin_reorder_leaders', {
+            p_password: adminPassword,
+            p_ids: orderedIds,
+        });
+        if (error) throw error;
+        await loadDB();
+    }
+
     async function deleteRow(adminPassword, table, id) {
         const sb = getClient();
         const { error } = await sb.rpc('admin_delete_row', {
@@ -640,7 +650,7 @@
                 p_phone: payload.phone,
                 p_tg: payload.tg,
                 p_room: payload.room || '',
-                p_photo: payload.photo || '',
+                p_photo: payload.photo !== undefined ? payload.photo : null,
             });
             if (error) throw error;
         } else if (sheet === 'complaints') {
@@ -723,6 +733,7 @@
         validateFileInput,
         uploadPhotosFromInput,
         uploadFilesFromInput,
+        reorderLeaders,
         deleteRow,
         insertComplaint,
         addComplaintComment,

@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
     <title>Гуртожиток №1 ПНУ</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.public.js"></script>
-    <script src="database.js?v=20260524-features-v10"></script>
+    <script src="database.js?v=20260525a"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
@@ -316,64 +318,42 @@
                         border-color 0.2s ease;
         }
 
-        /* Drag and drop styles */
-        .draggable-item {
-            cursor: grab;
-            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
-                        box-shadow 0.2s ease,
-                        background 0.2s ease;
+        /* Перетягування контактів (touch) */
+        .leader-row {
+            transition: box-shadow 0.15s ease, transform 0.15s ease;
         }
-        .draggable-item:active {
-            cursor: grabbing;
+        .leader-row.leader-drag-source {
+            opacity: 0.45;
         }
-        .draggable-item.dragging {
-            opacity: 0.5;
-            transform: scale(1.02) rotate(2deg);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-            z-index: 100;
+        .leader-row.leader-drop-before {
+            box-shadow: inset 0 3px 0 0 #3b82f6;
         }
-        .draggable-item.drag-over {
-            border: 2px dashed #3b82f6;
-            background: rgba(59, 130, 246, 0.1);
+        .leader-row.leader-drop-after {
+            box-shadow: inset 0 -3px 0 0 #3b82f6;
         }
-
-        /* Drag handle */
-        .drag-handle {
+        .leader-drag-ghost {
+            opacity: 1 !important;
+            transform: scale(1.02) !important;
+            box-shadow: 0 16px 40px rgba(15, 23, 42, 0.35) !important;
+            border: 2px solid #3b82f6 !important;
+            background: rgba(255, 255, 255, 0.98) !important;
+            border-radius: 1rem !important;
+            z-index: 200;
+        }
+        .dark .leader-drag-ghost {
+            background: rgba(30, 41, 59, 0.98) !important;
+            border-color: #60a5fa !important;
+        }
+        .leader-drag-handle {
+            touch-action: none;
             cursor: grab;
             color: #94a3b8;
-            transition: color 0.2s ease;
+            user-select: none;
+            -webkit-user-select: none;
         }
-        .drag-handle:hover {
+        .leader-drag-handle:active {
+            cursor: grabbing;
             color: #3b82f6;
-        }
-        .drag-handle:active {
-            cursor: grabbing;
-        }
-
-        .leader-order-btn {
-            width: 2rem;
-            height: 2rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 0.65rem;
-            background: rgba(148, 163, 184, 0.2);
-            color: #64748b;
-            font-size: 12px;
-            transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
-        }
-        .leader-order-btn:active:not(:disabled) {
-            transform: scale(0.92);
-            background: rgba(59, 130, 246, 0.25);
-            color: #2563eb;
-        }
-        .leader-order-btn:disabled {
-            opacity: 0.35;
-            cursor: not-allowed;
-        }
-        .dark .leader-order-btn {
-            background: rgba(51, 65, 85, 0.6);
-            color: #94a3b8;
         }
 
         .lead-crop-stage {
@@ -2249,180 +2229,184 @@
             }
         }
 
-        async function moveLeader(leaderId, direction) {
-            if (!isAdmin()) return;
-            const idx = mockDB.leaders.findIndex((l) => l.id === leaderId);
-            const newIdx = idx + direction;
-            if (idx < 0 || newIdx < 0 || newIdx >= mockDB.leaders.length) return;
-            const [item] = mockDB.leaders.splice(idx, 1);
-            mockDB.leaders.splice(newIdx, 0, item);
-            renderLeaders();
-            await updateLeadersOrder();
+        let leaderTouchDrag = null;
+
+        function clearLeaderDropMarkers() {
+            document.querySelectorAll('.leader-row').forEach((el) => {
+                el.classList.remove('leader-drop-before', 'leader-drop-after');
+            });
+        }
+
+        function setupLeaderTouchDrag(item, handle) {
+            handle.addEventListener('pointerdown', (e) => {
+                if (!isAdmin() || leaderTouchDrag) return;
+                e.preventDefault();
+                const list = document.getElementById('list-leaders');
+                const rect = item.getBoundingClientRect();
+                const ghost = item.cloneNode(true);
+                ghost.classList.add('leader-drag-ghost');
+                ghost.style.width = rect.width + 'px';
+                ghost.style.left = rect.left + 'px';
+                ghost.style.top = rect.top + 'px';
+                document.body.appendChild(ghost);
+                item.classList.add('leader-drag-source');
+
+                leaderTouchDrag = {
+                    id: item.dataset.id,
+                    item,
+                    list,
+                    ghost,
+                    offsetY: e.clientY - rect.top,
+                    startY: e.clientY,
+                    pointerId: e.pointerId,
+                };
+                handle.setPointerCapture(e.pointerId);
+
+                const onMove = (ev) => {
+                    if (!leaderTouchDrag || ev.pointerId !== leaderTouchDrag.pointerId) return;
+                    ghost.style.top = (ev.clientY - leaderTouchDrag.offsetY) + 'px';
+                    clearLeaderDropMarkers();
+                    const rows = [...list.querySelectorAll('.leader-row')];
+                    let target = null;
+                    let placeAfter = false;
+                    rows.forEach((row) => {
+                        if (row === item) return;
+                        const r = row.getBoundingClientRect();
+                        if (ev.clientY >= r.top && ev.clientY <= r.bottom) {
+                            target = row;
+                            placeAfter = ev.clientY > r.top + r.height / 2;
+                        }
+                    });
+                    if (target) {
+                        target.classList.add(placeAfter ? 'leader-drop-after' : 'leader-drop-before');
+                    }
+                };
+
+                const onUp = async (ev) => {
+                    if (!leaderTouchDrag || ev.pointerId !== leaderTouchDrag.pointerId) return;
+                    document.removeEventListener('pointermove', onMove);
+                    document.removeEventListener('pointerup', onUp);
+                    document.removeEventListener('pointercancel', onUp);
+
+                    ghost.remove();
+                    item.classList.remove('leader-drag-source');
+                    clearLeaderDropMarkers();
+
+                    const dragId = leaderTouchDrag.id;
+                    const fromIdx = mockDB.leaders.findIndex((l) => l.id === dragId);
+                    const rows = [...list.querySelectorAll('.leader-row')];
+                    let toIdx = mockDB.leaders.length;
+
+                    for (let i = 0; i < rows.length; i++) {
+                        const row = rows[i];
+                        if (row.dataset.id === dragId) continue;
+                        const r = row.getBoundingClientRect();
+                        if (ev.clientY < r.top + r.height / 2) {
+                            toIdx = mockDB.leaders.findIndex((l) => l.id === row.dataset.id);
+                            break;
+                        }
+                        toIdx = mockDB.leaders.findIndex((l) => l.id === row.dataset.id) + 1;
+                    }
+
+                    if (fromIdx >= 0 && fromIdx !== toIdx) {
+                        const [moved] = mockDB.leaders.splice(fromIdx, 1);
+                        const insertAt = toIdx > fromIdx ? toIdx - 1 : toIdx;
+                        mockDB.leaders.splice(insertAt, 0, moved);
+                        renderLeaders();
+                        await updateLeadersOrder();
+                    }
+
+                    try { handle.releasePointerCapture(ev.pointerId); } catch (_) {}
+                    leaderTouchDrag = null;
+                };
+
+                document.addEventListener('pointermove', onMove);
+                document.addEventListener('pointerup', onUp);
+                document.addEventListener('pointercancel', onUp);
+            });
         }
 
         function renderLeaders() {
             const list = document.getElementById('list-leaders');
             list.innerHTML = '';
             const fragment = document.createDocumentFragment();
-            const total = mockDB.leaders.length;
-            const adminReorder = isAdmin();
-            mockDB.leaders.forEach((l, index) => {
+            const adminMode = isAdmin();
+            mockDB.leaders.forEach((l) => {
                 const item = document.createElement('div');
-                item.className = 'p-3.5 flex justify-between items-center cascade-item' + (adminReorder ? ' draggable-item' : '');
-                if (adminReorder) {
-                    item.draggable = true;
-                    item.dataset.id = l.id;
-                    item.dataset.index = String(index);
-                }
-                
-                let linksHTML = '<div class="flex items-center gap-2">';
+                item.className = 'leader-row p-3.5 cascade-item' + (adminMode ? ' admin-leader-row' : '');
+                item.dataset.id = l.id;
+                const nameClass = adminMode
+                    ? 'text-[14px] font-black text-slate-800 dark:text-slate-100 leading-snug break-words'
+                    : 'text-[15px] font-black text-slate-800 dark:text-slate-100 truncate leading-tight';
+
+                let linksHTML = '';
                 if (l.phone && l.phone.trim() !== '') {
                     const phoneHref = normalizePhoneHref(l.phone);
-                    linksHTML += `<a href="tel:${escapeAttr(phoneHref)}" target="_self" rel="external" class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30 btn-push text-[16px]"><i class="fa-solid fa-phone"></i></a>`;
+                    linksHTML += `<a href="tel:${escapeAttr(phoneHref)}" target="_self" rel="external" class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center shadow-md btn-push text-[14px]"><i class="fa-solid fa-phone"></i></a>`;
                 }
                 if (l.tg && l.tg.trim() !== '') {
-                    linksHTML += `<a href="https://t.me/${l.tg.replace('@','')}" target="_blank" class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-500/30 btn-push text-[16px]"><i class="fa-solid fa-paper-plane"></i></a>`;
+                    linksHTML += `<a href="https://t.me/${l.tg.replace('@','')}" target="_blank" class="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-400 to-blue-500 text-white flex items-center justify-center shadow-md btn-push text-[14px]"><i class="fa-solid fa-paper-plane"></i></a>`;
                 }
-                linksHTML += '</div>';
 
-                item.innerHTML = `
-                    <div class="flex items-center gap-3.5 min-w-0 flex-1">
-                        ${adminReorder ? `
-                        <div class="flex flex-col gap-1 shrink-0">
-                            <button type="button" class="leader-order-btn" title="Вище" ${index === 0 ? 'disabled' : ''} onclick="moveLeader('${l.id}', -1)"><i class="fa-solid fa-chevron-up"></i></button>
-                            <button type="button" class="leader-order-btn" title="Нижче" ${index === total - 1 ? 'disabled' : ''} onclick="moveLeader('${l.id}', 1)"><i class="fa-solid fa-chevron-down"></i></button>
+                const adminBtns = adminMode ? `
+                    <button type="button" class="w-7 h-7 flex items-center justify-center rounded bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-blue-500 transition-colors text-[12px]" onclick="openCrudForm('leaders', 'edit', '${l.id}')"><i class="fa-solid fa-pen"></i></button>
+                    <button type="button" class="w-7 h-7 flex items-center justify-center rounded bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-rose-500 transition-colors text-[12px]" onclick="handleItemDeletion('leaders', '${l.id}')"><i class="fa-solid fa-trash"></i></button>
+                ` : '';
+
+                item.innerHTML = adminMode ? `
+                    <div class="flex items-start gap-2.5">
+                        <div class="leader-drag-handle w-9 h-11 shrink-0 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800/90" title="Утримуйте і перетягніть">
+                            <i class="fa-solid fa-grip-vertical text-[15px]"></i>
                         </div>
-                        <div class="drag-handle w-8 h-10 flex items-center justify-center text-slate-400 dark:text-slate-500 shrink-0 rounded-lg bg-slate-100/80 dark:bg-slate-800/80" title="Перетягніть">
-                            <i class="fa-solid fa-grip-vertical text-[14px]"></i>
-                        </div>
-                        ` : ''}
-                        <div class="w-12 h-12 rounded-full bg-slate-200/80 dark:bg-slate-800 flex items-center justify-center border-2 border-white dark:border-slate-700 font-black text-xl shrink-0 text-slate-600 dark:text-slate-400 shadow-sm overflow-hidden">
-                            ${l.photo ? `<img src="${l.photo}" alt="${escapeHtml(l.name)}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.textContent='${l.name.charAt(0)}';">` : l.name.charAt(0)}
+                        <div class="w-11 h-11 rounded-full bg-slate-200/80 dark:bg-slate-800 flex items-center justify-center border-2 border-white dark:border-slate-700 font-black text-lg shrink-0 text-slate-600 dark:text-slate-400 shadow-sm overflow-hidden">
+                            ${l.photo ? `<img src="${escapeAttr(l.photo)}" alt="" class="w-full h-full object-cover" loading="lazy" onerror="this.remove();">` : escapeHtml(l.name.charAt(0))}
                         </div>
                         <div class="min-w-0 flex-1">
-                            <span class="text-[11px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 block leading-none mb-1.5">${l.role}</span>
-                            <h4 class="text-[15px] font-black text-slate-800 dark:text-slate-100 truncate leading-tight">${l.name}</h4>
-                            ${l.room && l.room.trim() ? `<span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-0.5 block"><i class="fa-solid fa-door-open mr-1"></i> кімн. ${escapeHtml(l.room)}</span>` : ''}
+                            <span class="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 block leading-none mb-1">${escapeHtml(l.role)}</span>
+                            <h4 class="${nameClass}">${escapeHtml(l.name)}</h4>
+                            ${l.room && l.room.trim() ? `<span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-1 block"><i class="fa-solid fa-door-open mr-1"></i>кімн. ${escapeHtml(l.room)}</span>` : ''}
                         </div>
                     </div>
-                    
-                    <div class="flex items-center gap-3 shrink-0 ml-2">
-                        ${linksHTML}
-                        ${isAdmin() ? `
-                            <div class="flex flex-col gap-1 shrink-0 border-l border-slate-200 dark:border-slate-700 pl-2">
-                                <button class="w-7 h-7 flex items-center justify-center rounded bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-blue-500 transition-colors text-[12px]" onclick="openCrudForm('leaders', 'edit', '${l.id}')"><i class="fa-solid fa-pen"></i></button>
-                                <button class="w-7 h-7 flex items-center justify-center rounded bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-rose-500 transition-colors text-[12px]" onclick="handleItemDeletion('leaders', '${l.id}')"><i class="fa-solid fa-trash"></i></button>
-                            </div>
-                        ` : ''}
+                    <div class="flex items-center justify-end gap-2 mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                        <div class="flex items-center gap-2">${linksHTML}</div>
+                        <div class="flex items-center gap-1">${adminBtns}</div>
+                    </div>
+                ` : `
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-12 h-12 rounded-full bg-slate-200/80 dark:bg-slate-800 flex items-center justify-center border-2 border-white dark:border-slate-700 font-black text-xl shrink-0 text-slate-600 dark:text-slate-400 shadow-sm overflow-hidden">
+                            ${l.photo ? `<img src="${escapeAttr(l.photo)}" alt="" class="w-full h-full object-cover" loading="lazy" onerror="this.remove();">` : escapeHtml(l.name.charAt(0))}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <span class="text-[11px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 block leading-none mb-1">${escapeHtml(l.role)}</span>
+                            <h4 class="${nameClass}">${escapeHtml(l.name)}</h4>
+                            ${l.room && l.room.trim() ? `<span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-0.5 block"><i class="fa-solid fa-door-open mr-1"></i> кімн. ${escapeHtml(l.room)}</span>` : ''}
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">${linksHTML}</div>
                     </div>
                 `;
-                
-                if (adminReorder) {
-                    const handle = item.querySelector('.drag-handle');
-                    item.draggable = false;
-                    if (handle) {
-                        handle.addEventListener('mousedown', () => { item.draggable = true; });
-                        handle.addEventListener('touchstart', () => { item.draggable = true; }, { passive: true });
-                    }
-                    item.addEventListener('dragstart', handleDragStart);
-                    item.addEventListener('dragend', (e) => {
-                        item.draggable = false;
-                        handleDragEnd.call(item, e);
-                    });
-                    item.addEventListener('dragover', handleDragOver);
-                    item.addEventListener('drop', handleDrop);
-                    item.addEventListener('dragleave', handleDragLeave);
-                }
 
+                if (adminMode) {
+                    const handle = item.querySelector('.leader-drag-handle');
+                    if (handle) setupLeaderTouchDrag(item, handle);
+                }
                 fragment.appendChild(item);
             });
             list.appendChild(fragment);
-        }
-
-        let draggedItem = null;
-
-        function handleDragStart(e) {
-            draggedItem = this;
-            this.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', this.dataset.id || '');
-            if (e.dataTransfer.setDragImage) {
-                const ghost = this.cloneNode(true);
-                ghost.style.opacity = '0.85';
-                ghost.style.width = this.offsetWidth + 'px';
-                document.body.appendChild(ghost);
-                e.dataTransfer.setDragImage(ghost, 20, 20);
-                setTimeout(() => ghost.remove(), 0);
-            }
-        }
-
-        function handleDragEnd(e) {
-            this.classList.remove('dragging');
-            document.querySelectorAll('.draggable-item').forEach(item => {
-                item.classList.remove('drag-over');
-            });
-            draggedItem = null;
-        }
-
-        function handleDragOver(e) {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            if (this !== draggedItem) {
-                this.classList.add('drag-over');
-            }
-        }
-
-        function handleDragLeave(e) {
-            this.classList.remove('drag-over');
-        }
-
-        function handleDrop(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            if (draggedItem !== this) {
-                const fromIndex = parseInt(draggedItem.dataset.index);
-                const toIndex = parseInt(this.dataset.index);
-                
-                // Reorder array
-                const item = mockDB.leaders.splice(fromIndex, 1)[0];
-                mockDB.leaders.splice(toIndex, 0, item);
-                
-                // Update sort_order in database
-                updateLeadersOrder();
-                
-                // Re-render
-                renderLeaders();
-            }
-            
-            this.classList.remove('drag-over');
-            return false;
         }
 
         async function updateLeadersOrder() {
             if (!isAdmin()) return;
             try {
                 document.getElementById('db-loading').classList.remove('hidden');
-                
-                // Update sort_order for each leader
-                for (let i = 0; i < mockDB.leaders.length; i++) {
-                    const leader = mockDB.leaders[i];
-                    await DormDatabase.adminSave(currentAdminPassword, 'leaders', 'edit', {
-                        id: leader.id,
-                        role: leader.role,
-                        name: leader.name,
-                        phone: leader.phone,
-                        tg: leader.tg,
-                        room: leader.room || '',
-                        photo: leader.photo || '',
-                    });
-                }
-                
+                const ids = mockDB.leaders.map((l) => l.id);
+                await DormDatabase.reorderLeaders(currentAdminPassword, ids);
                 refreshMockDB();
                 showToast('Порядок контактів оновлено!');
             } catch (err) {
                 console.error(err);
                 showToast(err.message || 'Помилка оновлення порядку', 'error');
+                refreshMockDB();
+                renderLeaders();
             } finally {
                 document.getElementById('db-loading').classList.add('hidden');
             }
