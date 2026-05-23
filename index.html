@@ -225,6 +225,158 @@
         html.tg-android .diia-glass-card:hover {
             transform: none;
         }
+
+        /* iOS 26 Style Animations */
+        
+        /* Spring-based button press */
+        .btn-push {
+            transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), 
+                        opacity 0.15s ease,
+                        box-shadow 0.15s ease;
+        }
+        .btn-push:active {
+            transform: scale(0.92);
+            transition: transform 0.08s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* Smooth page transitions */
+        .app-tab {
+            transition: opacity 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+                        transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        .app-tab.hidden {
+            opacity: 0;
+            transform: scale(0.98);
+            pointer-events: none;
+        }
+        .app-tab.tab-content-active {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* Enhanced card hover with spring */
+        .diia-glass-card {
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        box-shadow 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+                        background 0.3s ease;
+        }
+        .diia-glass-card:active {
+            transform: scale(0.97);
+            transition: transform 0.1s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* Tab button active state animation */
+        .tab-btn {
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .tab-btn.active {
+            transform: scale(1.05);
+        }
+        .tab-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* List item stagger animation with spring */
+        @keyframes listStaggerIn {
+            0% { 
+                opacity: 0; 
+                transform: translateY(20px) scale(0.95); 
+            }
+            100% { 
+                opacity: 1; 
+                transform: translateY(0) scale(1); 
+            }
+        }
+        
+        .cascade-item {
+            animation: listStaggerIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+            opacity: 0;
+        }
+
+        /* Enhanced modal animation */
+        @keyframes modalFadeIn {
+            0% { 
+                opacity: 0; 
+                transform: scale(0.9) translateY(20px); 
+                filter: blur(10px);
+            }
+            100% { 
+                opacity: 1; 
+                transform: scale(1) translateY(0); 
+                filter: blur(0);
+            }
+        }
+        .animate-modal {
+            animation: modalFadeIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        /* Input focus animation */
+        input:focus, textarea:focus, select:focus {
+            transition: box-shadow 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        border-color 0.2s ease;
+        }
+
+        /* Drag and drop styles */
+        .draggable-item {
+            cursor: grab;
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        box-shadow 0.2s ease,
+                        background 0.2s ease;
+        }
+        .draggable-item:active {
+            cursor: grabbing;
+        }
+        .draggable-item.dragging {
+            opacity: 0.5;
+            transform: scale(1.02) rotate(2deg);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+        }
+        .draggable-item.drag-over {
+            border: 2px dashed #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        /* Drag handle */
+        .drag-handle {
+            cursor: grab;
+            color: #94a3b8;
+            transition: color 0.2s ease;
+        }
+        .drag-handle:hover {
+            color: #3b82f6;
+        }
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        /* Comment section animation */
+        @keyframes slideUp {
+            0% {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .slide-up {
+            animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        /* Pulse animation for new comments */
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
     </style>
 </head>
 <body class="bg-diia-light text-slate-800 dark:text-slate-100 min-h-screen pb-32 antialiased text-[15px] font-medium leading-relaxed">
@@ -449,6 +601,16 @@
                     <button data-floor="5" class="floor-btn flex-1 py-2 text-center text-[13px] font-bold rounded-xl text-slate-600 dark:text-slate-400 transition-all hover:bg-white/50 dark:hover:bg-slate-800/50">5 поверх</button>
                 </div>
                 <div id="list-duty" class="space-y-2.5"></div>
+                
+                <div id="sanitary-comment-section" class="p-5 bg-white/60 dark:bg-slate-900/60 rounded-[28px] border border-white/60 dark:border-slate-700/50 shadow-md backdrop-blur-xl slide-up hidden">
+                    <div class="text-[15px] font-black uppercase tracking-wide pb-3 border-b border-slate-200/60 dark:border-slate-700/50 text-slate-800 dark:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-comment-dots text-teal-500"></i> Коментар адміна до санітарки
+                    </div>
+                    <div class="space-y-3 mt-4">
+                        <textarea id="sanitary-admin-comment" rows="3" placeholder="Залиште коментар про роботу санітарки (бачать усі)..." class="w-full px-4 py-3 text-[14px] font-medium bg-white/70 dark:bg-slate-800/60 border border-white/80 dark:border-slate-600/50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/40 text-slate-800 dark:text-slate-100 shadow-sm transition-all placeholder:text-slate-400 resize-none"></textarea>
+                        <button type="button" id="submit-sanitary-admin-comment-btn" class="w-full py-3 bg-gradient-to-r from-teal-500 to-emerald-600 text-white font-black rounded-2xl text-[15px] btn-push shadow-lg shadow-teal-500/30 uppercase tracking-wide">Надіслати коментар</button>
+                    </div>
+                </div>
             </section>
 
             <section id="tab-complaints" class="app-tab space-y-5 hidden">
@@ -1069,6 +1231,39 @@
             }
         }
 
+        async function submitSanitaryAdminComment() {
+            if (!isAdmin()) {
+                showToast('Тільки адмін може писати коментарі', 'error');
+                return;
+            }
+            
+            const commentInput = document.getElementById('sanitary-admin-comment');
+            const comment = commentInput.value.trim();
+            
+            if (!comment) {
+                showToast('Будь ласка, напишіть коментар', 'error');
+                return;
+            }
+            
+            try {
+                document.getElementById('db-loading').classList.remove('hidden');
+                
+                // Send push notification to all users about the admin comment
+                await DormDatabase.notifyPush(
+                    '📢 Коментар адміна про санітарку',
+                    `${comment}`
+                );
+                
+                commentInput.value = '';
+                showToast('Коментар надіслано всім користувачам! 📢');
+            } catch (err) {
+                console.error(err);
+                showToast(err.message || 'Помилка надсилання коментаря', 'error');
+            } finally {
+                document.getElementById('db-loading').classList.add('hidden');
+            }
+        }
+
         function renderAttachmentsHtml(attachments, captionPrefix) {
             const list = attachments && attachments.length ? attachments : [];
             if (!list.length) return '';
@@ -1199,6 +1394,16 @@
 
             document.getElementById('info-app-content').innerHTML = mockDB.info.content;
             document.getElementById('duty-rules-content').innerHTML = mockDB.rules.content;
+            
+            // Show sanitary comment section only for admin
+            const sanitaryCommentSection = document.getElementById('sanitary-comment-section');
+            if (sanitaryCommentSection) {
+                if (isAdmin()) {
+                    sanitaryCommentSection.classList.remove('hidden');
+                } else {
+                    sanitaryCommentSection.classList.add('hidden');
+                }
+            }
         }
 
         function renderGoals(totalBalance) {
@@ -1582,9 +1787,12 @@
             const list = document.getElementById('list-leaders');
             list.innerHTML = '';
             const fragment = document.createDocumentFragment();
-            mockDB.leaders.forEach(l => {
+            mockDB.leaders.forEach((l, index) => {
                 const item = document.createElement('div');
-                item.className = 'p-3.5 flex justify-between items-center cascade-item';
+                item.className = 'p-3.5 flex justify-between items-center cascade-item draggable-item';
+                item.draggable = true;
+                item.dataset.id = l.id;
+                item.dataset.index = index;
                 
                 let linksHTML = '<div class="flex items-center gap-2">';
                 if (l.phone && l.phone.trim() !== '') {
@@ -1598,8 +1806,11 @@
 
                 item.innerHTML = `
                     <div class="flex items-center gap-3.5 min-w-0 flex-1">
-                        <div class="w-12 h-12 rounded-full bg-slate-200/80 dark:bg-slate-800 flex items-center justify-center border-2 border-white dark:border-slate-700 font-black text-xl shrink-0 text-slate-600 dark:text-slate-400 shadow-sm">
-                            ${l.name.charAt(0)}
+                        <div class="drag-handle w-6 h-6 flex items-center justify-center text-slate-400 dark:text-slate-500 shrink-0">
+                            <i class="fa-solid fa-grip-vertical"></i>
+                        </div>
+                        <div class="w-12 h-12 rounded-full bg-slate-200/80 dark:bg-slate-800 flex items-center justify-center border-2 border-white dark:border-slate-700 font-black text-xl shrink-0 text-slate-600 dark:text-slate-400 shadow-sm overflow-hidden">
+                            ${l.photo ? `<img src="${l.photo}" alt="${escapeHtml(l.name)}" class="w-full h-full object-cover">` : l.name.charAt(0)}
                         </div>
                         <div class="min-w-0 flex-1">
                             <span class="text-[11px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 block leading-none mb-1.5">${l.role}</span>
@@ -1618,9 +1829,97 @@
                         ` : ''}
                     </div>
                 `;
+                
+                // Add drag event listeners
+                item.addEventListener('dragstart', handleDragStart);
+                item.addEventListener('dragend', handleDragEnd);
+                item.addEventListener('dragover', handleDragOver);
+                item.addEventListener('drop', handleDrop);
+                item.addEventListener('dragleave', handleDragLeave);
+                
                 fragment.appendChild(item);
             });
             list.appendChild(fragment);
+        }
+
+        let draggedItem = null;
+
+        function handleDragStart(e) {
+            draggedItem = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+        }
+
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            document.querySelectorAll('.draggable-item').forEach(item => {
+                item.classList.remove('drag-over');
+            });
+            draggedItem = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (this !== draggedItem) {
+                this.classList.add('drag-over');
+            }
+        }
+
+        function handleDragLeave(e) {
+            this.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (draggedItem !== this) {
+                const fromIndex = parseInt(draggedItem.dataset.index);
+                const toIndex = parseInt(this.dataset.index);
+                
+                // Reorder array
+                const item = mockDB.leaders.splice(fromIndex, 1)[0];
+                mockDB.leaders.splice(toIndex, 0, item);
+                
+                // Update sort_order in database
+                updateLeadersOrder();
+                
+                // Re-render
+                renderLeaders();
+            }
+            
+            this.classList.remove('drag-over');
+            return false;
+        }
+
+        async function updateLeadersOrder() {
+            if (!isAdmin()) return;
+            try {
+                document.getElementById('db-loading').classList.remove('hidden');
+                
+                // Update sort_order for each leader
+                for (let i = 0; i < mockDB.leaders.length; i++) {
+                    const leader = mockDB.leaders[i];
+                    await DormDatabase.adminSave(currentAdminPassword, 'leaders', 'edit', {
+                        id: leader.id,
+                        role: leader.role,
+                        name: leader.name,
+                        phone: leader.phone,
+                        tg: leader.tg,
+                        room: leader.room || ''
+                    });
+                }
+                
+                refreshMockDB();
+                showToast('Порядок контактів оновлено!');
+            } catch (err) {
+                console.error(err);
+                showToast(err.message || 'Помилка оновлення порядку', 'error');
+            } finally {
+                document.getElementById('db-loading').classList.add('hidden');
+            }
         }
 
         function openLightbox(url, caption) {
@@ -1806,6 +2105,11 @@
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Telegram (@)</label>
                         <input type="text" id="input-lead-tg" value="${item ? item.tg : ''}" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all" placeholder="@username">
                     </div>
+                    <div class="space-y-1">
+                        <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Фото (необов'язково)</label>
+                        <input type="file" id="input-lead-photo" accept="image/*" class="w-full text-[13px] file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[13px] file:font-black file:bg-blue-500/10 file:text-blue-600 cursor-pointer">
+                        ${item && item.photo ? `<p class="text-[11px] text-slate-500 pl-1">Поточне фото: <span class="text-blue-600">${item.photo}</span></p>` : ''}
+                    </div>
                 `;
             } else if (sheet === 'polls') {
                 title.innerText = '📊 Нове опитування';
@@ -1927,6 +2231,7 @@
                 document.getElementById('modal-duty-sanitary').classList.add('hidden');
             });
             document.getElementById('duty-sanitary-save')?.addEventListener('click', () => saveDutySanitaryFromModal());
+            document.getElementById('submit-sanitary-admin-comment-btn')?.addEventListener('click', submitSanitaryAdminComment);
 
             document.getElementById('confirm-cancel-btn').addEventListener('click', () => {
                 document.getElementById('modal-custom-confirm').classList.add('hidden'); confirmCallback = null;
@@ -2159,13 +2464,23 @@
                             dutyTime: document.getElementById('input-duty-time')?.value || '22:00'
                         };
                     } else if (sheet === 'leaders') {
+                        const photoInput = document.getElementById('input-lead-photo');
+                        let photoUrl = '';
+                        if (photoInput && photoInput.files.length > 0) {
+                            const files = await DormDatabase.uploadFilesFromInput(photoInput, 'leaders');
+                            photoUrl = files.length > 0 ? files[0].url : '';
+                        } else if (action === 'edit' && rowId) {
+                            const existingLeader = mockDB.leaders.find(l => l.id === rowId);
+                            photoUrl = existingLeader ? (existingLeader.photo || '') : '';
+                        }
                         payload = {
                             id: action === 'add' ? 'l_' + Date.now() : rowId,
                             role: document.getElementById('input-lead-role').value,
                             name: document.getElementById('input-lead-name').value,
                             room: document.getElementById('input-lead-room').value,
                             phone: document.getElementById('input-lead-phone').value,
-                            tg: document.getElementById('input-lead-tg').value
+                            tg: document.getElementById('input-lead-tg').value,
+                            photo: photoUrl
                         };
                     } else if (sheet === 'complaints') {
                         payload = {
