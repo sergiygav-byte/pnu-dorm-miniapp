@@ -7,7 +7,7 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.public.js"></script>
-    <script src="database.js?v=20260523-features-v9c"></script>
+    <script src="database.js?v=20260524-features-v10"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
@@ -350,6 +350,62 @@
             cursor: grabbing;
         }
 
+        .leader-order-btn {
+            width: 2rem;
+            height: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.65rem;
+            background: rgba(148, 163, 184, 0.2);
+            color: #64748b;
+            font-size: 12px;
+            transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+        }
+        .leader-order-btn:active:not(:disabled) {
+            transform: scale(0.92);
+            background: rgba(59, 130, 246, 0.25);
+            color: #2563eb;
+        }
+        .leader-order-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+        .dark .leader-order-btn {
+            background: rgba(51, 65, 85, 0.6);
+            color: #94a3b8;
+        }
+
+        .lead-crop-stage {
+            position: relative;
+            width: 100%;
+            max-width: 280px;
+            aspect-ratio: 1;
+            margin: 0 auto;
+            border-radius: 1rem;
+            overflow: hidden;
+            background: #0f172a;
+            touch-action: none;
+            user-select: none;
+        }
+        .lead-crop-stage canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            cursor: grab;
+        }
+        .lead-crop-stage canvas:active {
+            cursor: grabbing;
+        }
+        .lead-crop-ring {
+            position: absolute;
+            inset: 8%;
+            border: 2px dashed rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            pointer-events: none;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+        }
+
         /* Comment section animation */
         @keyframes slideUp {
             0% {
@@ -388,13 +444,19 @@
         <p class="text-white font-bold text-[14px]">Завантаження даних…</p>
     </div>
 
-    <div id="maintenance-overlay" class="fixed inset-0 z-[115] bg-slate-950/95 backdrop-blur-xl hidden flex flex-col items-center justify-center p-6 text-center touch-manipulation">
-        <div id="maintenance-overlay-icon" role="button" tabindex="0" aria-label="Технічний доступ" class="w-24 h-24 rounded-full bg-amber-500/25 text-amber-400 flex items-center justify-center text-4xl mb-5 cursor-pointer ring-2 ring-amber-400/30 active:scale-95 active:bg-amber-500/35 transition-all select-none touch-manipulation" style="touch-action:manipulation;-webkit-tap-highlight-color:transparent">
-            <i class="fa-solid fa-screwdriver-wrench pointer-events-none"></i>
+    <div id="maintenance-overlay" class="fixed inset-0 z-[115] bg-slate-950/95 backdrop-blur-xl hidden flex flex-col items-center justify-center p-6 text-center">
+        <div class="w-20 h-20 rounded-full bg-amber-500/25 text-amber-400 flex items-center justify-center text-4xl mb-4">
+            <i class="fa-solid fa-screwdriver-wrench"></i>
         </div>
-        <p id="maintenance-tap-hint" class="hidden text-[11px] text-amber-400/90 font-bold mt-1">Ще <span id="maintenance-tap-left">0</span> натискань…</p>
         <h2 class="text-[22px] font-black text-white mb-2">Йде оновлення додатку</h2>
-        <p class="text-[15px] text-slate-300 max-w-xs">Скоро все буде працювати. Зайдіть пізніше.</p>
+        <p class="text-[15px] text-slate-300 max-w-xs mb-6">Скоро все буде працювати. Зайдіть пізніше.</p>
+        <div class="w-full max-w-xs space-y-3 text-left">
+            <label class="text-[11px] font-black text-amber-400/90 uppercase tracking-wider pl-1">Для адміністратора</label>
+            <input type="password" id="maintenance-overlay-password" autocomplete="off" placeholder="Введіть код доступу" class="w-full px-4 py-3.5 rounded-xl border border-slate-600 bg-slate-800/90 text-white text-[15px] placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500">
+            <button type="button" id="maintenance-overlay-disable-btn" class="w-full py-3.5 rounded-xl font-black text-[15px] bg-gradient-to-r from-amber-500 to-orange-500 text-white btn-push shadow-lg shadow-amber-500/30">
+                Вимкнути оновлення
+            </button>
+        </div>
     </div>
 
     <div id="modal-maintenance" class="fixed inset-0 z-[125] bg-slate-950/60 backdrop-blur-md hidden flex items-center justify-center p-4">
@@ -941,12 +1003,10 @@
         }
 
         const MAINTENANCE_BYPASS_KEY = 'pnu_maintenance_bypass';
-        let maintenanceIconTapCount = 0;
-        let maintenanceIconTapTimer = null;
-        let maintenanceLastTouchAt = 0;
         window._pollVotersOpen = window._pollVotersOpen || {};
 
-        let leadPhotoCrop = { img: null, zoom: 1, markedDelete: false };
+        let leadPhotoCrop = { img: null, zoom: 1, panX: 0, panY: 0, markedDelete: false };
+        let leadPhotoPanDrag = null;
 
         function hasMaintenanceBypass() {
             return sessionStorage.getItem(MAINTENANCE_BYPASS_KEY) === '1';
@@ -958,72 +1018,29 @@
             const show = !!(mockDB.maintenanceMode && !hasMaintenanceBypass());
             overlay.classList.toggle('hidden', !show);
             if (show) {
-                maintenanceIconTapCount = 0;
-                const hint = document.getElementById('maintenance-tap-hint');
-                if (hint) hint.classList.add('hidden');
-                bindMaintenanceOverlayGestures();
+                const inp = document.getElementById('maintenance-overlay-password');
+                if (inp) inp.value = '';
             }
         }
 
-        function handleMaintenanceIconTap() {
-            maintenanceIconTapCount++;
-            clearTimeout(maintenanceIconTapTimer);
-            maintenanceIconTapTimer = setTimeout(() => {
-                maintenanceIconTapCount = 0;
-                const hint = document.getElementById('maintenance-tap-hint');
-                if (hint) hint.classList.add('hidden');
-            }, 3500);
-
-            const left = 5 - maintenanceIconTapCount;
-            const hint = document.getElementById('maintenance-tap-hint');
-            const leftEl = document.getElementById('maintenance-tap-left');
-            if (hint && leftEl && left > 0) {
-                hint.classList.remove('hidden');
-                leftEl.textContent = String(left);
+        async function disableMaintenanceFromOverlay() {
+            const pass = document.getElementById('maintenance-overlay-password')?.value.trim();
+            if (!pass) {
+                showToast('Введіть код доступу', 'error');
+                return;
             }
-
             try {
-                window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light');
-            } catch (_) {}
-
-            if (maintenanceIconTapCount >= 5) {
-                maintenanceIconTapCount = 0;
-                clearTimeout(maintenanceIconTapTimer);
-                if (hint) hint.classList.add('hidden');
-                try {
-                    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success');
-                } catch (_) {}
-                openMaintenanceModal();
+                document.getElementById('db-loading').classList.remove('hidden');
+                await DormDatabase.setMaintenanceMode(pass, false);
+                sessionStorage.setItem(MAINTENANCE_BYPASS_KEY, '1');
+                refreshMockDB();
+                applyMaintenanceOverlay();
+                showToast('Оновлення вимкнено — додаток доступний ✅');
+            } catch (err) {
+                showToast(err.message || 'Невірний код', 'error');
+            } finally {
+                document.getElementById('db-loading').classList.add('hidden');
             }
-        }
-
-        function bindMaintenanceOverlayGestures() {
-            const overlay = document.getElementById('maintenance-overlay');
-            const icon = document.getElementById('maintenance-overlay-icon');
-            if (!overlay || !icon || overlay.dataset.gesturesBound === '1') return;
-            overlay.dataset.gesturesBound = '1';
-
-            function isIconTarget(target) {
-                return target === icon || icon.contains(target);
-            }
-
-            function onPointerUp(e) {
-                if (overlay.classList.contains('hidden') || !isIconTarget(e.target)) return;
-                if (e.type === 'touchend') {
-                    maintenanceLastTouchAt = Date.now();
-                    e.preventDefault();
-                }
-                if (e.type === 'click' && Date.now() - maintenanceLastTouchAt < 600) return;
-                handleMaintenanceIconTap();
-            }
-
-            icon.addEventListener('touchend', onPointerUp, { passive: false });
-            icon.addEventListener('click', onPointerUp);
-            icon.addEventListener('pointerup', (e) => {
-                if (e.pointerType === 'touch') return;
-                if (overlay.classList.contains('hidden') || !isIconTarget(e.target)) return;
-                handleMaintenanceIconTap();
-            });
         }
 
         function openMaintenanceModal() {
@@ -1063,8 +1080,33 @@
             return `<span class="${size} font-bold text-slate-500 dark:text-slate-400">${comment.parentId ? 'Відповідь' : 'Коментар'}</span>`;
         }
 
+        function clampLeadPan(v) {
+            return Math.max(-1, Math.min(1, v));
+        }
+
+        function drawLeadPhotoCrop() {
+            const canvas = document.getElementById('lead-photo-canvas');
+            if (!canvas || !leadPhotoCrop.img) return;
+            const ctx = canvas.getContext('2d');
+            const displaySize = canvas.offsetWidth || 280;
+            const size = Math.max(280, Math.round(displaySize * 2));
+            canvas.width = size;
+            canvas.height = size;
+            const img = leadPhotoCrop.img;
+            const zoom = Math.max(1, leadPhotoCrop.zoom);
+            const minSide = Math.min(img.width, img.height);
+            const cropSize = minSide / zoom;
+            const maxPanX = Math.max(0, (img.width - cropSize) / 2);
+            const maxPanY = Math.max(0, (img.height - cropSize) / 2);
+            const sx = (img.width - cropSize) / 2 + leadPhotoCrop.panX * maxPanX;
+            const sy = (img.height - cropSize) / 2 + leadPhotoCrop.panY * maxPanY;
+            ctx.clearRect(0, 0, size, size);
+            ctx.drawImage(img, sx, sy, cropSize, cropSize, 0, 0, size, size);
+        }
+
         function initLeadPhotoEditor(existingPhotoUrl) {
-            leadPhotoCrop = { img: null, zoom: 1, markedDelete: false };
+            leadPhotoCrop = { img: null, zoom: 1, panX: 0, panY: 0, markedDelete: false };
+            leadPhotoPanDrag = null;
             const fileInput = document.getElementById('input-lead-photo');
             const cropWrap = document.getElementById('lead-photo-crop-wrap');
             const canvas = document.getElementById('lead-photo-canvas');
@@ -1072,27 +1114,41 @@
             const currentWrap = document.getElementById('lead-photo-current-wrap');
             const deleteBtn = document.getElementById('delete-lead-photo-btn');
 
-            const draw = () => {
-                if (!canvas || !leadPhotoCrop.img) return;
-                const ctx = canvas.getContext('2d');
-                const size = 256;
-                canvas.width = size;
-                canvas.height = size;
-                const img = leadPhotoCrop.img;
-                const zoom = leadPhotoCrop.zoom;
-                const minSide = Math.min(img.width, img.height);
-                const cropSize = minSide / zoom;
-                const sx = (img.width - cropSize) / 2;
-                const sy = (img.height - cropSize) / 2;
-                ctx.clearRect(0, 0, size, size);
-                ctx.drawImage(img, sx, sy, cropSize, cropSize, 0, 0, size, size);
-            };
-
             if (zoomInput) {
                 zoomInput.oninput = () => {
                     leadPhotoCrop.zoom = Number(zoomInput.value) || 1;
-                    draw();
+                    drawLeadPhotoCrop();
                 };
+            }
+
+            if (canvas) {
+                const onPanStart = (e) => {
+                    if (!leadPhotoCrop.img) return;
+                    leadPhotoPanDrag = {
+                        id: e.pointerId,
+                        startX: e.clientX,
+                        startY: e.clientY,
+                        panX: leadPhotoCrop.panX,
+                        panY: leadPhotoCrop.panY,
+                    };
+                    canvas.setPointerCapture(e.pointerId);
+                };
+                const onPanMove = (e) => {
+                    if (!leadPhotoPanDrag || leadPhotoPanDrag.id !== e.pointerId) return;
+                    const dx = (e.clientX - leadPhotoPanDrag.startX) / canvas.clientWidth;
+                    const dy = (e.clientY - leadPhotoPanDrag.startY) / canvas.clientHeight;
+                    leadPhotoCrop.panX = clampLeadPan(leadPhotoPanDrag.panX - dx * 2.2);
+                    leadPhotoCrop.panY = clampLeadPan(leadPhotoPanDrag.panY - dy * 2.2);
+                    drawLeadPhotoCrop();
+                };
+                const onPanEnd = (e) => {
+                    if (leadPhotoPanDrag?.id === e.pointerId) leadPhotoPanDrag = null;
+                    try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+                };
+                canvas.onpointerdown = onPanStart;
+                canvas.onpointermove = onPanMove;
+                canvas.onpointerup = onPanEnd;
+                canvas.onpointercancel = onPanEnd;
             }
 
             if (fileInput) {
@@ -1114,9 +1170,11 @@
                         img.onload = () => {
                             leadPhotoCrop.img = img;
                             leadPhotoCrop.zoom = 1;
+                            leadPhotoCrop.panX = 0;
+                            leadPhotoCrop.panY = 0;
                             if (zoomInput) zoomInput.value = '1';
                             if (cropWrap) cropWrap.classList.remove('hidden');
-                            draw();
+                            requestAnimationFrame(drawLeadPhotoCrop);
                         };
                         img.src = e.target.result;
                     };
@@ -1148,7 +1206,13 @@
                     resolve(null);
                     return;
                 }
-                canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.88);
+                drawLeadPhotoCrop();
+                const exportCanvas = document.createElement('canvas');
+                exportCanvas.width = 512;
+                exportCanvas.height = 512;
+                const ctx = exportCanvas.getContext('2d');
+                ctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, 512, 512);
+                exportCanvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.9);
             });
         }
 
@@ -2185,16 +2249,31 @@
             }
         }
 
+        async function moveLeader(leaderId, direction) {
+            if (!isAdmin()) return;
+            const idx = mockDB.leaders.findIndex((l) => l.id === leaderId);
+            const newIdx = idx + direction;
+            if (idx < 0 || newIdx < 0 || newIdx >= mockDB.leaders.length) return;
+            const [item] = mockDB.leaders.splice(idx, 1);
+            mockDB.leaders.splice(newIdx, 0, item);
+            renderLeaders();
+            await updateLeadersOrder();
+        }
+
         function renderLeaders() {
             const list = document.getElementById('list-leaders');
             list.innerHTML = '';
             const fragment = document.createDocumentFragment();
+            const total = mockDB.leaders.length;
+            const adminReorder = isAdmin();
             mockDB.leaders.forEach((l, index) => {
                 const item = document.createElement('div');
-                item.className = 'p-3.5 flex justify-between items-center cascade-item draggable-item';
-                item.draggable = true;
-                item.dataset.id = l.id;
-                item.dataset.index = index;
+                item.className = 'p-3.5 flex justify-between items-center cascade-item' + (adminReorder ? ' draggable-item' : '');
+                if (adminReorder) {
+                    item.draggable = true;
+                    item.dataset.id = l.id;
+                    item.dataset.index = String(index);
+                }
                 
                 let linksHTML = '<div class="flex items-center gap-2">';
                 if (l.phone && l.phone.trim() !== '') {
@@ -2208,9 +2287,15 @@
 
                 item.innerHTML = `
                     <div class="flex items-center gap-3.5 min-w-0 flex-1">
-                        <div class="drag-handle w-6 h-6 flex items-center justify-center text-slate-400 dark:text-slate-500 shrink-0">
-                            <i class="fa-solid fa-grip-vertical"></i>
+                        ${adminReorder ? `
+                        <div class="flex flex-col gap-1 shrink-0">
+                            <button type="button" class="leader-order-btn" title="Вище" ${index === 0 ? 'disabled' : ''} onclick="moveLeader('${l.id}', -1)"><i class="fa-solid fa-chevron-up"></i></button>
+                            <button type="button" class="leader-order-btn" title="Нижче" ${index === total - 1 ? 'disabled' : ''} onclick="moveLeader('${l.id}', 1)"><i class="fa-solid fa-chevron-down"></i></button>
                         </div>
+                        <div class="drag-handle w-8 h-10 flex items-center justify-center text-slate-400 dark:text-slate-500 shrink-0 rounded-lg bg-slate-100/80 dark:bg-slate-800/80" title="Перетягніть">
+                            <i class="fa-solid fa-grip-vertical text-[14px]"></i>
+                        </div>
+                        ` : ''}
                         <div class="w-12 h-12 rounded-full bg-slate-200/80 dark:bg-slate-800 flex items-center justify-center border-2 border-white dark:border-slate-700 font-black text-xl shrink-0 text-slate-600 dark:text-slate-400 shadow-sm overflow-hidden">
                             ${l.photo ? `<img src="${l.photo}" alt="${escapeHtml(l.name)}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.textContent='${l.name.charAt(0)}';">` : l.name.charAt(0)}
                         </div>
@@ -2232,13 +2317,23 @@
                     </div>
                 `;
                 
-                // Add drag event listeners
-                item.addEventListener('dragstart', handleDragStart);
-                item.addEventListener('dragend', handleDragEnd);
-                item.addEventListener('dragover', handleDragOver);
-                item.addEventListener('drop', handleDrop);
-                item.addEventListener('dragleave', handleDragLeave);
-                
+                if (adminReorder) {
+                    const handle = item.querySelector('.drag-handle');
+                    item.draggable = false;
+                    if (handle) {
+                        handle.addEventListener('mousedown', () => { item.draggable = true; });
+                        handle.addEventListener('touchstart', () => { item.draggable = true; }, { passive: true });
+                    }
+                    item.addEventListener('dragstart', handleDragStart);
+                    item.addEventListener('dragend', (e) => {
+                        item.draggable = false;
+                        handleDragEnd.call(item, e);
+                    });
+                    item.addEventListener('dragover', handleDragOver);
+                    item.addEventListener('drop', handleDrop);
+                    item.addEventListener('dragleave', handleDragLeave);
+                }
+
                 fragment.appendChild(item);
             });
             list.appendChild(fragment);
@@ -2250,7 +2345,15 @@
             draggedItem = this;
             this.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/html', this.innerHTML);
+            e.dataTransfer.setData('text/plain', this.dataset.id || '');
+            if (e.dataTransfer.setDragImage) {
+                const ghost = this.cloneNode(true);
+                ghost.style.opacity = '0.85';
+                ghost.style.width = this.offsetWidth + 'px';
+                document.body.appendChild(ghost);
+                e.dataTransfer.setDragImage(ghost, 20, 20);
+                setTimeout(() => ghost.remove(), 0);
+            }
         }
 
         function handleDragEnd(e) {
@@ -2310,7 +2413,8 @@
                         name: leader.name,
                         phone: leader.phone,
                         tg: leader.tg,
-                        room: leader.room || ''
+                        room: leader.room || '',
+                        photo: leader.photo || '',
                     });
                 }
                 
@@ -2516,10 +2620,14 @@
                             </div>
                         ` : ''}
                         <input type="file" id="input-lead-photo" accept="image/*" class="w-full text-[13px] file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[13px] file:font-black file:bg-blue-500/10 file:text-blue-600 cursor-pointer">
-                        <div id="lead-photo-crop-wrap" class="hidden space-y-2 p-3 rounded-xl bg-slate-100/80 dark:bg-slate-800/50">
-                            <canvas id="lead-photo-canvas" class="w-24 h-24 rounded-full mx-auto block border-2 border-violet-400 shadow-md"></canvas>
-                            <label class="text-[11px] font-bold text-slate-500 block text-center">Наблизити / розмір</label>
-                            <input type="range" id="lead-photo-zoom" min="1" max="2.5" step="0.05" value="1" class="w-full accent-violet-600">
+                        <div id="lead-photo-crop-wrap" class="hidden space-y-3 p-3 rounded-xl bg-slate-100/80 dark:bg-slate-800/50">
+                            <p class="text-[11px] font-bold text-slate-500 dark:text-slate-400 text-center">Перетягніть фото пальцем · коло = аватар</p>
+                            <div class="lead-crop-stage">
+                                <canvas id="lead-photo-canvas"></canvas>
+                                <div class="lead-crop-ring" aria-hidden="true"></div>
+                            </div>
+                            <label class="text-[11px] font-bold text-slate-500 block">Наблизити (для обличчя)</label>
+                            <input type="range" id="lead-photo-zoom" min="1" max="4" step="0.02" value="1" class="w-full accent-violet-600">
                         </div>
                     </div>
                 `;
@@ -2638,11 +2746,19 @@
             document.getElementById('re-open-onboarding-btn').addEventListener('click', () => openWelcomeInstruction(true));
             document.getElementById('app-refresh-btn').addEventListener('click', refreshAppData);
 
-            bindMaintenanceOverlayGestures();
-            document.getElementById('maintenance-overlay-icon')?.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleMaintenanceIconTap();
+            document.getElementById('maintenance-overlay-disable-btn')?.addEventListener('click', disableMaintenanceFromOverlay);
+            document.getElementById('maintenance-overlay-password')?.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') disableMaintenanceFromOverlay();
+            });
+            let maintTitleTaps = 0;
+            let maintTitleTimer = null;
+            document.getElementById('app-title-maintenance-trigger')?.addEventListener('click', () => {
+                maintTitleTaps++;
+                clearTimeout(maintTitleTimer);
+                maintTitleTimer = setTimeout(() => { maintTitleTaps = 0; }, 1200);
+                if (maintTitleTaps >= 5) {
+                    maintTitleTaps = 0;
+                    openMaintenanceModal();
                 }
             });
             document.getElementById('maintenance-enable-btn')?.addEventListener('click', () => runMaintenanceAction(true));
