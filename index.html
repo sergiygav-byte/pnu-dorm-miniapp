@@ -196,6 +196,35 @@
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
             transition: all 0.3s ease;
         }
+
+        html.tg-android .bg-diia-light,
+        html.tg-android.dark body,
+        html.tg-android.dark .bg-diia-light {
+            animation-duration: 42s;
+        }
+
+        html.tg-android .diia-glass-card {
+            backdrop-filter: blur(10px) saturate(135%);
+            -webkit-backdrop-filter: blur(10px) saturate(135%);
+        }
+
+        html.tg-android .diia-glass-card::before {
+            animation-duration: 22s;
+            opacity: 0.7;
+        }
+
+        html.tg-android .cascade-item {
+            animation-duration: 0.16s;
+        }
+
+        html.tg-android .btn-push {
+            transition: transform 0.18s ease, opacity 0.18s ease, background 0.18s ease, color 0.18s ease;
+        }
+
+        html.tg-android .btn-push:hover,
+        html.tg-android .diia-glass-card:hover {
+            transform: none;
+        }
     </style>
 </head>
 <body class="bg-diia-light text-slate-800 dark:text-slate-100 min-h-screen pb-32 antialiased text-[15px] font-medium leading-relaxed">
@@ -635,6 +664,31 @@
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
 
+        html.tg-android #list-payments > div,
+        html.tg-android #list-expenses > div,
+        html.tg-android #container-active-goals > div,
+        html.tg-android #list-events > div,
+        html.tg-android #list-duty > div,
+        html.tg-android #list-complaints > div,
+        html.tg-android #list-leaders > div {
+            background: rgba(255, 255, 255, 0.66);
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            box-shadow: 0 6px 18px rgba(31, 38, 135, 0.06);
+            transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        }
+
+        html.tg-android.dark #list-payments > div,
+        html.tg-android.dark #list-expenses > div,
+        html.tg-android.dark #container-active-goals > div,
+        html.tg-android.dark #list-events > div,
+        html.tg-android.dark #list-duty > div,
+        html.tg-android.dark #list-complaints > div,
+        html.tg-android.dark #list-leaders > div {
+            background: rgba(30, 41, 59, 0.72);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+        }
+
         #list-payments > div:hover, #list-expenses > div:hover, #container-active-goals > div:hover, #list-events > div:hover, #list-duty > div:hover, #list-complaints > div:hover, #list-leaders > div:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.06);
@@ -644,6 +698,29 @@
         .dark #list-payments > div:hover, .dark #list-expenses > div:hover, .dark #container-active-goals > div:hover, .dark #list-events > div:hover, .dark #list-duty > div:hover, .dark #list-complaints > div:hover, .dark #list-leaders > div:hover {
             background: rgba(30, 41, 59, 0.8);
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        html.tg-android #list-payments > div:hover,
+        html.tg-android #list-expenses > div:hover,
+        html.tg-android #container-active-goals > div:hover,
+        html.tg-android #list-events > div:hover,
+        html.tg-android #list-duty > div:hover,
+        html.tg-android #list-complaints > div:hover,
+        html.tg-android #list-leaders > div:hover {
+            transform: none;
+            background: rgba(255, 255, 255, 0.66);
+            box-shadow: 0 6px 18px rgba(31, 38, 135, 0.06);
+        }
+
+        html.tg-android.dark #list-payments > div:hover,
+        html.tg-android.dark #list-expenses > div:hover,
+        html.tg-android.dark #container-active-goals > div:hover,
+        html.tg-android.dark #list-events > div:hover,
+        html.tg-android.dark #list-duty > div:hover,
+        html.tg-android.dark #list-complaints > div:hover,
+        html.tg-android.dark #list-leaders > div:hover {
+            background: rgba(30, 41, 59, 0.72);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
         }
         
         /* Прогрес бар для цілей */
@@ -1781,6 +1858,9 @@
             if (tg) {
                 tg.ready();
                 tg.expand();
+                if (/android/i.test(tg.platform || navigator.userAgent)) {
+                    document.documentElement.classList.add('tg-android');
+                }
                 if (tg.themeParams?.bg_color) {
                     document.documentElement.style.setProperty('--tg-bg', tg.themeParams.bg_color);
                 }
