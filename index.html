@@ -7,7 +7,7 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.public.js"></script>
-    <script src="database.js?v=20260523-features-v8"></script>
+    <script src="database.js?v=20260523-features-v9"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
@@ -388,6 +388,27 @@
         <p class="text-white font-bold text-[14px]">Завантаження даних…</p>
     </div>
 
+    <div id="maintenance-overlay" class="fixed inset-0 z-[115] bg-slate-950/95 backdrop-blur-xl hidden flex flex-col items-center justify-center p-6 text-center">
+        <div class="w-20 h-20 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-4xl mb-5">
+            <i class="fa-solid fa-screwdriver-wrench"></i>
+        </div>
+        <h2 class="text-[22px] font-black text-white mb-2">Йде оновлення додатку</h2>
+        <p class="text-[15px] text-slate-300 max-w-xs">Скоро все буде працювати. Зайдіть пізніше.</p>
+    </div>
+
+    <div id="modal-maintenance" class="fixed inset-0 z-[60] bg-slate-950/60 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="w-full max-w-sm bg-white/95 dark:bg-slate-900/95 rounded-diia p-5 shadow-2xl border border-white/50 dark:border-slate-700 space-y-4">
+            <h3 class="text-[15px] font-black uppercase text-slate-900 dark:text-white">Режим оновлення</h3>
+            <p class="text-[12px] text-slate-500">Пароль для технічного доступу</p>
+            <input type="password" id="maintenance-password-input" placeholder="Пароль" class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-[14px]">
+            <div class="flex flex-col gap-2">
+                <button type="button" id="maintenance-enable-btn" class="w-full py-3 rounded-xl font-black text-[14px] bg-amber-500 text-white btn-push">Увімкнути «Йде оновлення»</button>
+                <button type="button" id="maintenance-disable-btn" class="w-full py-3 rounded-xl font-bold text-[14px] bg-slate-200 dark:bg-slate-700 btn-push">Вимкнути оновлення</button>
+                <button type="button" id="maintenance-cancel-btn" class="w-full py-2 text-[13px] text-slate-500 font-bold btn-push">Скасувати</button>
+            </div>
+        </div>
+    </div>
+
     <button id="app-refresh-btn" type="button" class="fixed right-4 bottom-24 z-40 w-11 h-11 rounded-2xl bg-white/75 dark:bg-slate-900/75 text-slate-700 dark:text-slate-200 border border-white/70 dark:border-slate-700/70 shadow-lg backdrop-blur-xl btn-push flex items-center justify-center">
         <i class="fa-solid fa-rotate text-[15px]"></i>
     </button>
@@ -478,7 +499,7 @@
                     <img src="https://lh3.googleusercontent.com/d/13UNdMTqTcqWLehFZ3sCeLrAdql_Zl1Yb" alt="Лого" class="relative w-11 h-11 rounded-full object-cover shadow-sm border-2 border-white dark:border-slate-800 shrink-0">
                 </div>
                 <div class="min-w-0 flex-1">
-                    <h1 class="text-[16px] font-black tracking-wide text-slate-800 dark:text-slate-100 uppercase leading-none drop-shadow-sm">Гуртожиток №1 🏫</h1>
+                    <h1 id="app-title-maintenance-trigger" class="text-[16px] font-black tracking-wide text-slate-800 dark:text-slate-100 uppercase leading-none drop-shadow-sm select-none">Гуртожиток №1 🏫</h1>
                     <p class="text-[12px] text-slate-600 dark:text-slate-400 font-semibold truncate mt-1 tracking-wide">Поліський національний університет</p>
                 </div>
             </div>
@@ -918,6 +939,167 @@
             confirmCallback = callback;
         }
 
+        const MAINTENANCE_BYPASS_KEY = 'pnu_maintenance_bypass';
+        let maintenanceTitleTapCount = 0;
+        let maintenanceTitleTapTimer = null;
+        window._pollVotersOpen = window._pollVotersOpen || {};
+
+        let leadPhotoCrop = { img: null, zoom: 1, markedDelete: false };
+
+        function hasMaintenanceBypass() {
+            return sessionStorage.getItem(MAINTENANCE_BYPASS_KEY) === '1';
+        }
+
+        function applyMaintenanceOverlay() {
+            const overlay = document.getElementById('maintenance-overlay');
+            if (!overlay) return;
+            const show = !!(mockDB.maintenanceMode && !hasMaintenanceBypass());
+            overlay.classList.toggle('hidden', !show);
+        }
+
+        function openMaintenanceModal() {
+            document.getElementById('maintenance-password-input').value = '';
+            document.getElementById('modal-maintenance').classList.remove('hidden');
+        }
+
+        async function runMaintenanceAction(enable) {
+            const pass = document.getElementById('maintenance-password-input').value.trim();
+            if (!pass) {
+                showToast('Введіть пароль', 'error');
+                return;
+            }
+            try {
+                document.getElementById('db-loading').classList.remove('hidden');
+                await DormDatabase.setMaintenanceMode(pass, enable);
+                sessionStorage.setItem(MAINTENANCE_BYPASS_KEY, '1');
+                refreshMockDB();
+                applyMaintenanceOverlay();
+                document.getElementById('modal-maintenance').classList.add('hidden');
+                showToast(enable ? 'Режим оновлення увімкнено' : 'Режим оновлення вимкнено');
+            } catch (err) {
+                showToast(err.message || 'Невірний пароль', 'error');
+            } finally {
+                document.getElementById('db-loading').classList.add('hidden');
+            }
+        }
+
+        function sanitaryAuthorHtml(comment, isReply) {
+            const size = isReply ? 'text-[12px]' : 'text-[13px]';
+            if (isAdmin()) {
+                const badge = comment.isAdmin
+                    ? '<span class="px-1.5 py-0.5 text-[9px] font-black uppercase bg-teal-500/10 text-teal-600 dark:text-teal-400 rounded-full">Адмін</span>'
+                    : '';
+                return `<span class="${size} font-black text-slate-700 dark:text-slate-300">${escapeHtml(comment.authorName)}</span>${badge}`;
+            }
+            return `<span class="${size} font-bold text-slate-500 dark:text-slate-400">${comment.parentId ? 'Відповідь' : 'Коментар'}</span>`;
+        }
+
+        function initLeadPhotoEditor(existingPhotoUrl) {
+            leadPhotoCrop = { img: null, zoom: 1, markedDelete: false };
+            const fileInput = document.getElementById('input-lead-photo');
+            const cropWrap = document.getElementById('lead-photo-crop-wrap');
+            const canvas = document.getElementById('lead-photo-canvas');
+            const zoomInput = document.getElementById('lead-photo-zoom');
+            const currentWrap = document.getElementById('lead-photo-current-wrap');
+            const deleteBtn = document.getElementById('delete-lead-photo-btn');
+
+            const draw = () => {
+                if (!canvas || !leadPhotoCrop.img) return;
+                const ctx = canvas.getContext('2d');
+                const size = 256;
+                canvas.width = size;
+                canvas.height = size;
+                const img = leadPhotoCrop.img;
+                const zoom = leadPhotoCrop.zoom;
+                const minSide = Math.min(img.width, img.height);
+                const cropSize = minSide / zoom;
+                const sx = (img.width - cropSize) / 2;
+                const sy = (img.height - cropSize) / 2;
+                ctx.clearRect(0, 0, size, size);
+                ctx.drawImage(img, sx, sy, cropSize, cropSize, 0, 0, size, size);
+            };
+
+            if (zoomInput) {
+                zoomInput.oninput = () => {
+                    leadPhotoCrop.zoom = Number(zoomInput.value) || 1;
+                    draw();
+                };
+            }
+
+            if (fileInput) {
+                fileInput.onchange = () => {
+                    const file = fileInput.files?.[0];
+                    if (!file) return;
+                    try {
+                        DormDatabase.validateFileInput(fileInput);
+                    } catch (err) {
+                        showToast(err.message, 'error');
+                        fileInput.value = '';
+                        return;
+                    }
+                    leadPhotoCrop.markedDelete = false;
+                    if (currentWrap) currentWrap.classList.add('hidden');
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            leadPhotoCrop.img = img;
+                            leadPhotoCrop.zoom = 1;
+                            if (zoomInput) zoomInput.value = '1';
+                            if (cropWrap) cropWrap.classList.remove('hidden');
+                            draw();
+                        };
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                };
+            }
+
+            if (deleteBtn) {
+                deleteBtn.onclick = () => {
+                    leadPhotoCrop.markedDelete = true;
+                    leadPhotoCrop.img = null;
+                    if (fileInput) fileInput.value = '';
+                    if (cropWrap) cropWrap.classList.add('hidden');
+                    if (currentWrap) currentWrap.classList.add('hidden');
+                    deleteBtn.textContent = 'Фото буде видалено при збереженні';
+                    deleteBtn.classList.add('text-rose-600');
+                };
+            }
+
+            if (existingPhotoUrl && currentWrap) {
+                currentWrap.classList.remove('hidden');
+            }
+        }
+
+        function getLeadPhotoBlob() {
+            return new Promise((resolve) => {
+                const canvas = document.getElementById('lead-photo-canvas');
+                if (!leadPhotoCrop.img || !canvas) {
+                    resolve(null);
+                    return;
+                }
+                canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.88);
+            });
+        }
+
+        function togglePollVoters(pollId) {
+            window._pollVotersOpen[pollId] = !window._pollVotersOpen[pollId];
+            renderPolls();
+        }
+
+        function buildPollVotersPanelHtml(poll) {
+            if (poll.anonymous) return '';
+            const blocks = poll.options.map((label, idx) => {
+                const voters = DormDatabase.getPollVoters(poll.id).filter((v) => Number(v.option_index) === idx);
+                if (!voters.length) return '';
+                const names = voters.map((v) => escapeHtml(DormDatabase.formatPollVoterLabel(v))).join(', ');
+                return `<div class="text-[11px] text-slate-600 dark:text-slate-400"><span class="font-black">${escapeHtml(label)}:</span> ${names}</div>`;
+            }).filter(Boolean);
+            if (!blocks.length) return '<p class="text-[11px] text-slate-500">Ще ніхто не проголосував</p>';
+            return blocks.join('');
+        }
+
         function formatToUkrainianDate(dateString) {
             if (!dateString || dateString === '-') return '-';
             const parts = dateString.split('-');
@@ -983,8 +1165,8 @@
                 if (btn) btn.disabled = true;
                 document.getElementById('db-loading').classList.remove('hidden');
                 await DormDatabase.loadDB();
-                if (isAdmin()) await loadAdminSanitaryReplies();
                 refreshMockDB();
+                applyMaintenanceOverlay();
                 renderAll();
                 if (isAdmin()) await renderBotVisitors();
                 showToast('Інформацію оновлено 🔄');
@@ -1239,24 +1421,12 @@
             if (hint) hint.classList.toggle('hidden', showForm || isAdmin());
         }
 
-        async function loadAdminSanitaryReplies() {
-            if (!isAdmin() || !currentAdminPassword) return;
-            try {
-                await DormDatabase.loadSanitaryRepliesAdmin(currentAdminPassword);
-                refreshMockDB();
-            } catch (e) {
-                console.warn('loadSanitaryReplies', e);
-            }
-        }
-
         function renderSanitaryComments() {
             const list = document.getElementById('sanitary-comments-list');
             list.innerHTML = '';
             updateSanitaryCommentForm();
 
-            const allComments = isAdmin()
-                ? DormDatabase.getSanitaryCommentsForUI()
-                : (mockDB.sanitaryComments || []);
+            const allComments = DormDatabase.getSanitaryCommentsForUI();
 
             if (!allComments.length) {
                 list.innerHTML = `<p class="text-[13px] text-slate-500 dark:text-slate-400 text-center py-2 font-medium">Коментарів ще немає</p>`;
@@ -1270,38 +1440,33 @@
                 const item = document.createElement('div');
                 item.className = 'p-3 bg-white/40 dark:bg-slate-800/40 rounded-2xl border border-white/50 dark:border-slate-700/50 backdrop-blur-md slide-up';
                 
-                const replies = isAdmin()
-                    ? allComments.filter(r => r.parentId === comment.id)
-                    : [];
-                const isAdminComment = comment.isAdmin;
+                const replies = allComments.filter(r => r.parentId === comment.id);
                 
                 item.innerHTML = `
                     <div class="flex justify-between items-start">
                         <div class="flex-1">
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="text-[13px] font-black ${isAdminComment ? 'text-teal-600 dark:text-teal-400' : 'text-slate-700 dark:text-slate-300'}">${isAdmin() ? escapeHtml(comment.authorName) : (isAdminComment ? 'Адмін' : 'Користувач')}</span>
-                                ${isAdminComment ? '<span class="px-2 py-0.5 text-[10px] font-black uppercase bg-teal-500/10 text-teal-600 dark:text-teal-400 rounded-full">Адмін</span>' : ''}
+                            <div class="flex items-center gap-2 mb-1 flex-wrap">
+                                ${sanitaryAuthorHtml(comment, false)}
                                 <span class="text-[11px] text-slate-400">${formatDate(comment.createdAt)}</span>
                             </div>
                             <p class="text-[14px] text-slate-700 dark:text-slate-300 leading-relaxed">${escapeHtml(comment.content)}</p>
                         </div>
-                        ${isAdmin() ? `<button class="ml-2 w-6 h-6 flex items-center justify-center rounded bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors text-[11px]" onclick="deleteSanitaryComment('${comment.id}')"><i class="fa-solid fa-trash"></i></button>` : ''}
+                        ${isAdmin() ? `<button type="button" class="ml-2 w-6 h-6 flex items-center justify-center rounded bg-rose-500/10 text-rose-500 hover:text-rose-500 hover:text-white transition-colors text-[11px]" onclick="deleteSanitaryComment('${comment.id}')"><i class="fa-solid fa-trash"></i></button>` : ''}
                     </div>
-                    <button class="mt-2 text-[12px] font-bold text-slate-500 hover:text-teal-600 transition-colors" onclick="setReplyToComment('${comment.id}')">Відповісти</button>
+                    <button type="button" class="mt-2 text-[12px] font-bold text-slate-500 hover:text-teal-600 transition-colors" onclick="setReplyToComment('${comment.id}')">Відповісти</button>
                     ${replies.length > 0 ? `
                         <div class="mt-3 pl-4 border-l-2 border-slate-200 dark:border-slate-700 space-y-2">
                             ${replies.map(reply => `
                                 <div class="p-2 bg-white/30 dark:bg-slate-700/30 rounded-xl">
                                     <div class="flex justify-between items-start">
                                         <div class="flex-1">
-                                            <div class="flex items-center gap-2 mb-1">
-                                                <span class="text-[12px] font-bold text-slate-600 dark:text-slate-400">${isAdmin() ? escapeHtml(reply.authorName) : (reply.isAdmin ? 'Адмін' : 'Користувач')}</span>
-                                                ${reply.isAdmin ? '<span class="px-1.5 py-0.5 text-[9px] font-black uppercase bg-teal-500/10 text-teal-600 dark:text-teal-400 rounded-full">Адмін</span>' : ''}
+                                            <div class="flex items-center gap-2 mb-1 flex-wrap">
+                                                ${sanitaryAuthorHtml(reply, true)}
                                                 <span class="text-[10px] text-slate-400">${formatDate(reply.createdAt)}</span>
                                             </div>
                                             <p class="text-[13px] text-slate-600 dark:text-slate-400">${escapeHtml(reply.content)}</p>
                                         </div>
-                                        ${isAdmin() ? `<button class="ml-2 w-5 h-5 flex items-center justify-center rounded bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors text-[10px]" onclick="deleteSanitaryComment('${reply.id}')"><i class="fa-solid fa-trash"></i></button>` : ''}
+                                        ${isAdmin() ? `<button type="button" class="ml-2 w-5 h-5 flex items-center justify-center rounded bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors text-[10px]" onclick="deleteSanitaryComment('${reply.id}')"><i class="fa-solid fa-trash"></i></button>` : ''}
                                     </div>
                                 </div>
                             `).join('')}
@@ -1374,26 +1539,25 @@
             }
         }
 
-        async function deleteSanitaryComment(commentId) {
+        function deleteSanitaryComment(commentId) {
             if (!isAdmin()) {
                 showToast('Тільки адмін може видаляти коментарі', 'error');
                 return;
             }
-            
-            if (!confirm('Видалити цей коментар?')) return;
-            
-            try {
-                document.getElementById('db-loading').classList.remove('hidden');
-                await DormDatabase.deleteSanitaryComment(currentAdminPassword, commentId);
-                refreshMockDB();
-                renderSanitaryComments();
-                showToast('Коментар видалено! 🗑️');
-            } catch (err) {
-                console.error(err);
-                showToast(err.message || 'Помилка видалення коментаря', 'error');
-            } finally {
-                document.getElementById('db-loading').classList.add('hidden');
-            }
+            showCustomConfirm('Видалити цей коментар? ❌', async () => {
+                try {
+                    document.getElementById('db-loading').classList.remove('hidden');
+                    await DormDatabase.deleteSanitaryComment(currentAdminPassword, commentId);
+                    refreshMockDB();
+                    renderSanitaryComments();
+                    showToast('Коментар видалено! 🗑️');
+                } catch (err) {
+                    console.error(err);
+                    showToast(err.message || 'Помилка видалення коментаря', 'error');
+                } finally {
+                    document.getElementById('db-loading').classList.add('hidden');
+                }
+            });
         }
 
         function formatDate(dateString) {
@@ -1543,6 +1707,7 @@
             document.getElementById('duty-rules-content').innerHTML = mockDB.rules.content;
             
             renderSanitaryComments();
+            applyMaintenanceOverlay();
         }
 
         function renderGoals(totalBalance) {
@@ -1767,13 +1932,6 @@
             }
         }
 
-        function buildPollVotersHtml(poll, optionIndex) {
-            const voters = DormDatabase.getPollVoters(poll.id).filter(v => Number(v.option_index) === optionIndex);
-            if (!voters.length) return '';
-            const lines = voters.map(v => escapeHtml(DormDatabase.formatPollVoterLabel(v))).join(', ');
-            return `<p class="text-[10px] text-slate-500 dark:text-slate-400 pl-1 mt-0.5 leading-snug">${lines}</p>`;
-        }
-
         function renderPolls() {
             const list = document.getElementById('list-polls');
             if (!list) return;
@@ -1791,6 +1949,7 @@
                 const expired = DormDatabase.isPollExpired(p);
                 const closed = !open;
                 const showPublicVoters = !p.anonymous;
+                const votersExpanded = !!window._pollVotersOpen[p.id];
                 const item = document.createElement('div');
                 item.className = 'p-4 diia-glass-card rounded-[24px] cascade-item space-y-3';
                 let optionsHTML = '';
@@ -1798,7 +1957,6 @@
                     const r = results[idx] || { percent: 0, count: 0 };
                     const voted = myVote === idx;
                     const canVote = open && tgUser && myVote === null;
-                    const votersHtml = showPublicVoters ? buildPollVotersHtml(p, idx) : '';
                     optionsHTML += `
                         <div class="space-y-1">
                             <div class="flex justify-between items-center gap-2">
@@ -1811,7 +1969,6 @@
                             <div class="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
                                 <div class="bg-violet-500 h-full rounded-full" style="width:${r.percent}%"></div>
                             </div>
-                            ${votersHtml}
                         </div>`;
                 });
                 if (!tgUser && open) {
@@ -1832,6 +1989,12 @@
                     </div>
                     ${closed ? `<p class="text-[11px] font-black text-slate-600 dark:text-slate-300 bg-slate-100/80 dark:bg-slate-800/50 rounded-xl px-3 py-2">📊 Підсумок голосування</p>` : ''}
                     <div class="space-y-2">${optionsHTML}</div>
+                    ${showPublicVoters ? `
+                        <button type="button" onclick="togglePollVoters('${p.id}')" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-violet-500/10 text-violet-700 dark:text-violet-300 text-[11px] font-black btn-push">
+                            <i class="fa-solid fa-users text-[10px]"></i> ${votersExpanded ? 'Сховати' : 'Хто проголосував'}
+                        </button>
+                        ${votersExpanded ? `<div class="p-3 rounded-xl bg-white/50 dark:bg-slate-800/50 border border-violet-500/20 space-y-1.5">${buildPollVotersPanelHtml(p)}</div>` : ''}
+                    ` : ''}
                     ${isAdmin() ? `
                         <div class="flex gap-2 justify-end pt-2 border-t border-slate-200/50 dark:border-slate-700/50">
                             ${open ? `<button type="button" onclick="closePoll('${p.id}')" class="px-3 py-1.5 text-[11px] font-black rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 btn-push">Закрити</button>` : ''}
@@ -2275,17 +2438,23 @@
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Telegram (@)</label>
                         <input type="text" id="input-lead-tg" value="${item ? item.tg : ''}" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all" placeholder="@username">
                     </div>
-                    <div class="space-y-1">
+                    <div class="space-y-2">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Фото (необов'язково)</label>
-                        <input type="file" id="input-lead-photo" accept="image/*" class="w-full text-[13px] file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[13px] file:font-black file:bg-blue-500/10 file:text-blue-600 cursor-pointer">
                         ${item && item.photo ? `
-                            <div class="flex items-center justify-between mt-1">
-                                <p class="text-[11px] text-slate-500 pl-1">Поточне фото: <span class="text-blue-600">${item.photo}</span></p>
+                            <div id="lead-photo-current-wrap" class="flex items-center gap-3">
+                                <img src="${escapeAttr(item.photo)}" alt="" class="w-16 h-16 rounded-full object-cover border-2 border-white dark:border-slate-600 shadow-md">
                                 <button type="button" id="delete-lead-photo-btn" class="text-[11px] font-black text-rose-500 hover:text-rose-600 transition-colors">Видалити фото</button>
                             </div>
                         ` : ''}
+                        <input type="file" id="input-lead-photo" accept="image/*" class="w-full text-[13px] file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[13px] file:font-black file:bg-blue-500/10 file:text-blue-600 cursor-pointer">
+                        <div id="lead-photo-crop-wrap" class="hidden space-y-2 p-3 rounded-xl bg-slate-100/80 dark:bg-slate-800/50">
+                            <canvas id="lead-photo-canvas" class="w-24 h-24 rounded-full mx-auto block border-2 border-violet-400 shadow-md"></canvas>
+                            <label class="text-[11px] font-bold text-slate-500 block text-center">Наблизити / розмір</label>
+                            <input type="range" id="lead-photo-zoom" min="1" max="2.5" step="0.05" value="1" class="w-full accent-violet-600">
+                        </div>
                     </div>
                 `;
+                initLeadPhotoEditor(item?.photo || '');
             } else if (sheet === 'polls') {
                 title.innerText = '📊 Нове опитування';
                 fieldsContainer.innerHTML = `
@@ -2342,16 +2511,6 @@
                 `;
             }
             document.getElementById('modal-crud-form').classList.remove('hidden');
-        
-        // Add event listener for delete photo button
-        const deletePhotoBtn = document.getElementById('delete-lead-photo-btn');
-        if (deletePhotoBtn) {
-            deletePhotoBtn.addEventListener('click', () => {
-                deletePhotoBtn.dataset.delete = 'true';
-                deletePhotoBtn.textContent = 'Фото буде видалено при збереженні';
-                deletePhotoBtn.classList.add('text-rose-600');
-            });
-        }
         }
 
         window.addEventListener('DOMContentLoaded', async () => {
@@ -2372,6 +2531,8 @@
             }
 
             await initCloudDatabase();
+            refreshMockDB();
+            applyMaintenanceOverlay();
 
             const tgUserOnLoad = getTelegramUser();
             if (tgUserOnLoad) {
@@ -2388,10 +2549,8 @@
             if (savedAdmin) {
                 try {
                     const ok = await DormDatabase.verifyAdmin(savedAdmin);
-                    if (ok) {
-                        currentAdminPassword = savedAdmin;
-                        await loadAdminSanitaryReplies();
-                    } else localStorage.removeItem('pnu_admin_session_v11');
+                    if (ok) currentAdminPassword = savedAdmin;
+                    else localStorage.removeItem('pnu_admin_session_v11');
                 } catch (_) {
                     localStorage.removeItem('pnu_admin_session_v11');
                 }
@@ -2409,6 +2568,24 @@
             document.getElementById('welcome-start-btn').addEventListener('click', closeWelcomeInstruction);
             document.getElementById('re-open-onboarding-btn').addEventListener('click', () => openWelcomeInstruction(true));
             document.getElementById('app-refresh-btn').addEventListener('click', refreshAppData);
+
+            const maintTitle = document.getElementById('app-title-maintenance-trigger');
+            if (maintTitle) {
+                maintTitle.addEventListener('click', () => {
+                    maintenanceTitleTapCount++;
+                    clearTimeout(maintenanceTitleTapTimer);
+                    maintenanceTitleTapTimer = setTimeout(() => { maintenanceTitleTapCount = 0; }, 700);
+                    if (maintenanceTitleTapCount >= 5) {
+                        maintenanceTitleTapCount = 0;
+                        openMaintenanceModal();
+                    }
+                });
+            }
+            document.getElementById('maintenance-enable-btn')?.addEventListener('click', () => runMaintenanceAction(true));
+            document.getElementById('maintenance-disable-btn')?.addEventListener('click', () => runMaintenanceAction(false));
+            document.getElementById('maintenance-cancel-btn')?.addEventListener('click', () => {
+                document.getElementById('modal-maintenance').classList.add('hidden');
+            });
             document.getElementById('admin-refresh-visitors-btn')?.addEventListener('click', () => renderBotVisitors());
             document.getElementById('admin-bot-push-toggle')?.addEventListener('change', async (e) => {
                 if (!isAdmin() || !currentAdminPassword) {
@@ -2526,7 +2703,6 @@
                         currentAdminPassword = pass;
                         localStorage.setItem('pnu_admin_session_v11', pass);
                         document.getElementById('modal-auth').classList.add('hidden');
-                        await loadAdminSanitaryReplies();
                         updateAdminUI();
                         renderAll();
                         await renderBotVisitors();
@@ -2542,7 +2718,6 @@
             document.getElementById('logout-confirm-btn').addEventListener('click', async () => {
                 currentAdminPassword = null;
                 localStorage.removeItem('pnu_admin_session_v11');
-                await DormDatabase.loadSanitaryRepliesAdmin(null);
                 document.getElementById('modal-confirm-logout').classList.add('hidden');
                 updateAdminUI();
                 refreshMockDB();
@@ -2682,19 +2857,17 @@
                             dutyTime: document.getElementById('input-duty-time')?.value || '22:00'
                         };
                     } else if (sheet === 'leaders') {
-                        const photoInput = document.getElementById('input-lead-photo');
                         let photoUrl = '';
-                        const deletePhotoBtn = document.getElementById('delete-lead-photo-btn');
-                        
-                        // Check if photo should be deleted
-                        if (deletePhotoBtn && deletePhotoBtn.dataset.delete === 'true') {
+                        if (leadPhotoCrop.markedDelete) {
                             photoUrl = '';
-                        } else if (photoInput && photoInput.files.length > 0) {
-                            const files = await DormDatabase.uploadFilesFromInput(photoInput, 'leaders');
-                            photoUrl = files.length > 0 ? files[0].url : '';
-                        } else if (action === 'edit' && rowId) {
-                            const existingLeader = mockDB.leaders.find(l => l.id === rowId);
-                            photoUrl = existingLeader ? (existingLeader.photo || '') : '';
+                        } else {
+                            const blob = await getLeadPhotoBlob();
+                            if (blob) {
+                                photoUrl = await DormDatabase.uploadBlob(blob, 'leaders');
+                            } else if (action === 'edit' && rowId) {
+                                const existingLeader = mockDB.leaders.find(l => l.id === rowId);
+                                photoUrl = existingLeader ? (existingLeader.photo || '') : '';
+                            }
                         }
                         
                         payload = {

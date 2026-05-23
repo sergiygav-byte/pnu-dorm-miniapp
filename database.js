@@ -21,9 +21,8 @@
         sanitaryReplies: [],
         info: { content: '' },
         rules: { content: '' },
+        maintenanceMode: false,
     };
-
-    let lastAdminPasswordForSanitary = null;
 
     function getClient() {
         if (!global.SUPABASE_URL || !global.SUPABASE_ANON_KEY) {
@@ -147,7 +146,7 @@
 
     async function loadDB() {
         const sb = getClient();
-        const [goals, payments, expenses, events, duty, leaders, complaints, comments, polls, votes, sanitary, content] = await Promise.all([
+        const [goals, payments, expenses, events, duty, leaders, complaints, comments, polls, votes, sanitary, content, maintenance] = await Promise.all([
             sb.from('goals').select('*').order('created_at', { ascending: true }),
             sb.from('payments').select('*').order('created_at', { ascending: false }),
             sb.from('expenses').select('*').order('created_at', { ascending: false }),
@@ -158,11 +157,12 @@
             sb.from('complaint_comments').select('*').order('created_at', { ascending: true }),
             sb.from('polls').select('*').order('created_at', { ascending: false }),
             sb.from('poll_votes').select('*'),
-            sb.from('sanitary_comments').select('*').is('parent_id', null).order('created_at', { ascending: true }),
+            sb.from('sanitary_comments').select('*').order('created_at', { ascending: true }),
             sb.from('content_blocks').select('*'),
+            sb.rpc('get_maintenance_mode'),
         ]);
 
-        const err = [goals, payments, expenses, events, duty, leaders, complaints, comments, polls, votes, sanitary, content].find((r) => r.error);
+        const err = [goals, payments, expenses, events, duty, leaders, complaints, comments, polls, votes, sanitary, content, maintenance].find((r) => r.error);
         if (err) throw err.error;
 
         const infoBlock = (content.data || []).find((c) => c.id === 'info');
@@ -183,30 +183,38 @@
             sanitaryReplies: [],
             info: { content: infoBlock ? infoBlock.content : '' },
             rules: { content: rulesBlock ? rulesBlock.content : '' },
+            maintenanceMode: maintenance.error ? false : !!maintenance.data,
         };
-
-        if (lastAdminPasswordForSanitary) {
-            await loadSanitaryRepliesAdmin(lastAdminPasswordForSanitary);
-        }
         return mockDB;
     }
 
-    async function loadSanitaryRepliesAdmin(adminPassword) {
-        lastAdminPasswordForSanitary = adminPassword || null;
-        if (!adminPassword) {
-            mockDB.sanitaryReplies = [];
-            return [];
-        }
-        const sb = getClient();
-        const { data, error } = await sb.rpc('admin_list_sanitary_replies', { p_password: adminPassword });
-        if (error) throw error;
-        const rows = Array.isArray(data) ? data : [];
-        mockDB.sanitaryReplies = rows.map((r) => mapRowToApp(r, 'sanitaryComments'));
-        return mockDB.sanitaryReplies;
+    function getSanitaryCommentsForUI() {
+        return mockDB.sanitaryComments || [];
     }
 
-    function getSanitaryCommentsForUI() {
-        return [...(mockDB.sanitaryComments || []), ...(mockDB.sanitaryReplies || [])];
+    async function setMaintenanceMode(password, enabled) {
+        const sb = getClient();
+        const { data, error } = await sb.rpc('set_maintenance_mode', {
+            p_password: password,
+            p_enabled: !!enabled,
+        });
+        if (error) throw error;
+        await loadDB();
+        return !!data;
+    }
+
+    async function uploadBlob(blob, folder = 'uploads') {
+        if (!blob) return '';
+        const sb = getClient();
+        const path = `${folder}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
+        const { error } = await sb.storage.from(BUCKET).upload(path, blob, {
+            cacheControl: '3600',
+            upsert: false,
+            contentType: 'image/jpeg',
+        });
+        if (error) throw error;
+        const { data } = sb.storage.from(BUCKET).getPublicUrl(path);
+        return data.publicUrl;
     }
 
     function isPollExpired(poll) {
@@ -530,8 +538,6 @@
             if (error) throw error;
         }
         await loadDB();
-        const pw = adminPassword || lastAdminPasswordForSanitary;
-        if (pw) await loadSanitaryRepliesAdmin(pw);
     }
 
     async function deleteSanitaryComment(adminPassword, commentId) {
@@ -542,8 +548,6 @@
         });
         if (error) throw error;
         await loadDB();
-        if (adminPassword) await loadSanitaryRepliesAdmin(adminPassword);
-        else if (lastAdminPasswordForSanitary) await loadSanitaryRepliesAdmin(lastAdminPasswordForSanitary);
     }
 
     function formatPollResultsMessage(poll) {
@@ -696,9 +700,10 @@
         isPollExpired,
         isPollOpen,
         getSanitaryCommentsForUI,
-        loadSanitaryRepliesAdmin,
         insertSanitaryComment,
         deleteSanitaryComment,
+        setMaintenanceMode,
+        uploadBlob,
         formatPollResultsMessage,
         verifyAdmin,
         trackWebAppVisit,
