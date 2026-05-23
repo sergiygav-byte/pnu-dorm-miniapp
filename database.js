@@ -17,9 +17,13 @@
         complaintComments: [],
         polls: [],
         pollVotes: [],
+        sanitaryComments: [],
+        sanitaryReplies: [],
         info: { content: '' },
         rules: { content: '' },
     };
+
+    let lastAdminPasswordForSanitary = null;
 
     function getClient() {
         if (!global.SUPABASE_URL || !global.SUPABASE_ANON_KEY) {
@@ -61,7 +65,15 @@
                     sanitaryComment: row.sanitary_comment || '',
                 };
             case 'leaders':
-                return { id: row.id, role: row.role, name: row.name, phone: row.phone || '', tg: row.tg || '', room: row.room || '' };
+                return {
+                    id: row.id,
+                    role: row.role,
+                    name: row.name,
+                    phone: row.phone || '',
+                    tg: row.tg || '',
+                    room: row.room || '',
+                    photo: row.photo || '',
+                };
             case 'complaints':
                 return {
                     id: row.id,
@@ -90,6 +102,18 @@
                     desc: row.description,
                     options: row.options || [],
                     active: row.active !== false,
+                    anonymous: row.anonymous !== false,
+                    endsAt: row.ends_at || null,
+                };
+            case 'sanitaryComments':
+                return {
+                    id: row.id,
+                    content: row.content,
+                    authorName: row.author_name || '',
+                    authorTelegramId: row.author_telegram_id || '',
+                    isAdmin: !!row.is_admin,
+                    parentId: row.parent_id || null,
+                    createdAt: row.created_at,
                 };
             default:
                 return row;
@@ -123,7 +147,7 @@
 
     async function loadDB() {
         const sb = getClient();
-        const [goals, payments, expenses, events, duty, leaders, complaints, comments, polls, votes, content] = await Promise.all([
+        const [goals, payments, expenses, events, duty, leaders, complaints, comments, polls, votes, sanitary, content] = await Promise.all([
             sb.from('goals').select('*').order('created_at', { ascending: true }),
             sb.from('payments').select('*').order('created_at', { ascending: false }),
             sb.from('expenses').select('*').order('created_at', { ascending: false }),
@@ -134,10 +158,11 @@
             sb.from('complaint_comments').select('*').order('created_at', { ascending: true }),
             sb.from('polls').select('*').order('created_at', { ascending: false }),
             sb.from('poll_votes').select('*'),
+            sb.from('sanitary_comments').select('*').is('parent_id', null).order('created_at', { ascending: true }),
             sb.from('content_blocks').select('*'),
         ]);
 
-        const err = [goals, payments, expenses, events, duty, leaders, complaints, comments, polls, votes, content].find((r) => r.error);
+        const err = [goals, payments, expenses, events, duty, leaders, complaints, comments, polls, votes, sanitary, content].find((r) => r.error);
         if (err) throw err.error;
 
         const infoBlock = (content.data || []).find((c) => c.id === 'info');
@@ -154,10 +179,54 @@
             complaintComments: (comments.data || []).map((r) => mapRowToApp(r, 'complaintComments')),
             polls: (polls.data || []).map((r) => mapRowToApp(r, 'polls')),
             pollVotes: votes.data || [],
+            sanitaryComments: (sanitary.data || []).map((r) => mapRowToApp(r, 'sanitaryComments')),
+            sanitaryReplies: [],
             info: { content: infoBlock ? infoBlock.content : '' },
             rules: { content: rulesBlock ? rulesBlock.content : '' },
         };
+
+        if (lastAdminPasswordForSanitary) {
+            await loadSanitaryRepliesAdmin(lastAdminPasswordForSanitary);
+        }
         return mockDB;
+    }
+
+    async function loadSanitaryRepliesAdmin(adminPassword) {
+        lastAdminPasswordForSanitary = adminPassword || null;
+        if (!adminPassword) {
+            mockDB.sanitaryReplies = [];
+            return [];
+        }
+        const sb = getClient();
+        const { data, error } = await sb.rpc('admin_list_sanitary_replies', { p_password: adminPassword });
+        if (error) throw error;
+        const rows = Array.isArray(data) ? data : [];
+        mockDB.sanitaryReplies = rows.map((r) => mapRowToApp(r, 'sanitaryComments'));
+        return mockDB.sanitaryReplies;
+    }
+
+    function getSanitaryCommentsForUI() {
+        return [...(mockDB.sanitaryComments || []), ...(mockDB.sanitaryReplies || [])];
+    }
+
+    function isPollExpired(poll) {
+        if (!poll?.endsAt) return false;
+        return new Date(poll.endsAt).getTime() <= Date.now();
+    }
+
+    function isPollOpen(poll) {
+        return poll?.active && !isPollExpired(poll);
+    }
+
+    function getPollVoters(pollId) {
+        return (mockDB.pollVotes || []).filter((v) => v.poll_id === pollId);
+    }
+
+    function formatPollVoterLabel(vote) {
+        const label = (vote.voter_label || '').trim();
+        if (label && label !== vote.voter_tg_id) return label;
+        if (vote.voter_tg_id) return `@${vote.voter_tg_id}`;
+        return 'Користувач';
     }
 
     function getDB() {
@@ -425,15 +494,62 @@
         }
     }
 
-    async function castVote(pollId, voterTgId, optionIndex) {
+    async function castVote(pollId, voterTgId, optionIndex, voterLabel) {
         const sb = getClient();
         const { error } = await sb.rpc('cast_poll_vote', {
             p_poll_id: pollId,
-            p_voter_tg_id: voterTgId,
+            p_voter_tg_id: String(voterTgId),
             p_option_index: optionIndex,
+            p_voter_label: voterLabel || String(voterTgId),
         });
         if (error) throw error;
         await loadDB();
+    }
+
+    async function insertSanitaryComment({ adminPassword, content, parentId, authorName, authorTgId, isAdmin }) {
+        const sb = getClient();
+        const id = 'sc_' + Date.now();
+        if (!parentId) {
+            if (!adminPassword) throw new Error('Тільки адмін може додавати коментар');
+            const { error } = await sb.rpc('insert_sanitary_comment_admin', {
+                p_password: adminPassword,
+                p_id: id,
+                p_content: content,
+                p_author_name: authorName || 'Адміністратор',
+            });
+            if (error) throw error;
+        } else {
+            const { error } = await sb.rpc('insert_sanitary_comment_reply', {
+                p_id: id,
+                p_content: content,
+                p_parent_id: parentId,
+                p_author_name: authorName || 'Користувач',
+                p_author_tg_id: authorTgId ? String(authorTgId) : '',
+                p_is_admin: !!isAdmin,
+            });
+            if (error) throw error;
+        }
+        await loadDB();
+        const pw = adminPassword || lastAdminPasswordForSanitary;
+        if (pw) await loadSanitaryRepliesAdmin(pw);
+    }
+
+    async function deleteSanitaryComment(adminPassword, commentId) {
+        const sb = getClient();
+        const { error } = await sb.rpc('admin_delete_sanitary_comment', {
+            p_password: adminPassword,
+            p_id: commentId,
+        });
+        if (error) throw error;
+        await loadDB();
+        if (adminPassword) await loadSanitaryRepliesAdmin(adminPassword);
+        else if (lastAdminPasswordForSanitary) await loadSanitaryRepliesAdmin(lastAdminPasswordForSanitary);
+    }
+
+    function formatPollResultsMessage(poll) {
+        const results = getPollResults(poll.id);
+        const lines = results.map((r) => `• ${r.label}: ${r.percent}% (${r.count})`);
+        return `${poll.title}\n\n${lines.join('\n')}`;
     }
 
     async function adminSave(adminPassword, sheet, action, payload) {
@@ -520,6 +636,7 @@
                 p_phone: payload.phone,
                 p_tg: payload.tg,
                 p_room: payload.room || '',
+                p_photo: payload.photo || '',
             });
             if (error) throw error;
         } else if (sheet === 'complaints') {
@@ -539,18 +656,21 @@
                     p_title: payload.title,
                     p_desc: payload.desc,
                     p_options: payload.options,
+                    p_anonymous: payload.anonymous !== false,
+                    p_ends_at: payload.endsAt || null,
                 });
                 if (error) throw error;
                 await notifyPush('📊 Нове опитування', payload.title);
             } else if (action === 'close') {
-                const pollTitle = mockDB.polls.find((p) => p.id === payload.id)?.title;
+                const poll = mockDB.polls.find((p) => p.id === payload.id);
                 const { error } = await sb.rpc('admin_set_poll_active', {
                     p_password: pw,
                     p_id: payload.id,
                     p_active: false,
                 });
                 if (error) throw error;
-                await notifyPush('📊 Опитування закрито', pollTitle || 'Опитування завершено');
+                const body = poll ? formatPollResultsMessage(poll) : 'Опитування завершено';
+                await notifyPush('📊 Опитування закрито', body);
             }
         } else if (sheet === 'info' || sheet === 'rules') {
             const { error } = await sb.rpc('admin_update_content', {
@@ -571,6 +691,15 @@
         canViewComplaintThread,
         getPollResults,
         getUserVote,
+        getPollVoters,
+        formatPollVoterLabel,
+        isPollExpired,
+        isPollOpen,
+        getSanitaryCommentsForUI,
+        loadSanitaryRepliesAdmin,
+        insertSanitaryComment,
+        deleteSanitaryComment,
+        formatPollResultsMessage,
         verifyAdmin,
         trackWebAppVisit,
         listBotVisitors,

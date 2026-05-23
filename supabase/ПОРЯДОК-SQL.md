@@ -10,9 +10,11 @@
 | 2 | `migration_v3.sql` | Коментарі, кімната, журнал бота |
 | 3 | `migration_v4.sql` | Вимкнення push, відвідувачі Mini App |
 | 4 | `migration_v5.sql` | (якщо ще не було) |
-| 5 | `migration_v6.sql` | **Завжди зараз** — простий push, онлайн, санітарка |
+| 5 | `migration_v6.sql` | Простий push, онлайн, санітарка |
+| 6 | `migration_v7.sql` | Блокування користувачів, нагадування санітарки |
+| 7 | `migration_v8.sql` | **Завжди зараз** — фото контактів, опитування, коментарі санітарки |
 
-Якщо v5 вже був — лише **migration_v6.sql**.
+Якщо v6–v7 вже були — лише **migration_v8.sql**.
 
 ## Варіант Б — повністю нова база
 
@@ -24,11 +26,14 @@
 | 4 | `migration_v4.sql` |
 | 5 | `migration_v5.sql` |
 | 6 | `migration_v6.sql` |
+| 7 | `migration_v7.sql` |
+| 8 | `migration_v8.sql` |
 
 ## Після запуску
 
-- Table Editor → є `complaint_comments`
-- `leaders` → колонка `room`
+- Table Editor → є `complaint_comments`, `sanitary_comments`
+- `leaders` → колонки `room`, `photo`
+- `polls` → колонки `anonymous`, `ends_at`
 - `app_settings` → змінити `admin_password`
 
 Повна інструкція: **`ПОЧАТОК.md`** у корені проєкту.

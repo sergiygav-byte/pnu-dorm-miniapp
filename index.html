@@ -7,7 +7,7 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.public.js"></script>
-    <script src="database.js?v=20260523-features-v7"></script>
+    <script src="database.js?v=20260523-features-v8"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
@@ -607,8 +607,8 @@
                         <i class="fa-solid fa-comments text-teal-500"></i> Коментарі про санітарку
                     </div>
                     <div id="sanitary-comments-list" class="space-y-3 mt-4"></div>
-                    
-                    <div id="sanitary-comment-form" class="mt-4 pt-4 border-t border-slate-200/60 dark:border-slate-700/50">
+                    <p id="sanitary-comment-hint" class="hidden mt-3 text-[12px] text-slate-500 dark:text-slate-400 text-center font-medium">Новий коментар додає лише адмін. Натисніть «Відповісти» під коментарем, щоб написати відповідь.</p>
+                    <div id="sanitary-comment-form" class="mt-4 pt-4 border-t border-slate-200/60 dark:border-slate-700/50 hidden">
                         <textarea id="sanitary-comment-input" rows="2" placeholder="Напишіть коментар або відповідь..." class="w-full px-4 py-3 text-[14px] font-medium bg-white/70 dark:bg-slate-800/60 border border-white/80 dark:border-slate-600/50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/40 text-slate-800 dark:text-slate-100 shadow-sm transition-all placeholder:text-slate-400 resize-none"></textarea>
                         <button type="button" id="submit-sanitary-comment-btn" class="w-full mt-3 py-3 bg-gradient-to-r from-teal-500 to-emerald-600 text-white font-black rounded-2xl text-[15px] btn-push shadow-lg shadow-teal-500/30 uppercase tracking-wide">Надіслати</button>
                     </div>
@@ -983,6 +983,7 @@
                 if (btn) btn.disabled = true;
                 document.getElementById('db-loading').classList.remove('hidden');
                 await DormDatabase.loadDB();
+                if (isAdmin()) await loadAdminSanitaryReplies();
                 refreshMockDB();
                 renderAll();
                 if (isAdmin()) await renderBotVisitors();
@@ -1230,23 +1231,48 @@
 
         let replyingToCommentId = null;
 
+        function updateSanitaryCommentForm() {
+            const form = document.getElementById('sanitary-comment-form');
+            const hint = document.getElementById('sanitary-comment-hint');
+            const showForm = isAdmin() || !!replyingToCommentId;
+            if (form) form.classList.toggle('hidden', !showForm);
+            if (hint) hint.classList.toggle('hidden', showForm || isAdmin());
+        }
+
+        async function loadAdminSanitaryReplies() {
+            if (!isAdmin() || !currentAdminPassword) return;
+            try {
+                await DormDatabase.loadSanitaryRepliesAdmin(currentAdminPassword);
+                refreshMockDB();
+            } catch (e) {
+                console.warn('loadSanitaryReplies', e);
+            }
+        }
+
         function renderSanitaryComments() {
             const list = document.getElementById('sanitary-comments-list');
             list.innerHTML = '';
-            
-            if (!mockDB.sanitaryComments || mockDB.sanitaryComments.length === 0) {
+            updateSanitaryCommentForm();
+
+            const allComments = isAdmin()
+                ? DormDatabase.getSanitaryCommentsForUI()
+                : (mockDB.sanitaryComments || []);
+
+            if (!allComments.length) {
                 list.innerHTML = `<p class="text-[13px] text-slate-500 dark:text-slate-400 text-center py-2 font-medium">Коментарів ще немає</p>`;
                 return;
             }
             
             const fragment = document.createDocumentFragment();
-            const topLevelComments = mockDB.sanitaryComments.filter(c => !c.parentId);
+            const topLevelComments = allComments.filter(c => !c.parentId);
             
             topLevelComments.forEach(comment => {
                 const item = document.createElement('div');
                 item.className = 'p-3 bg-white/40 dark:bg-slate-800/40 rounded-2xl border border-white/50 dark:border-slate-700/50 backdrop-blur-md slide-up';
                 
-                const replies = mockDB.sanitaryComments.filter(r => r.parentId === comment.id);
+                const replies = isAdmin()
+                    ? allComments.filter(r => r.parentId === comment.id)
+                    : [];
                 const isAdminComment = comment.isAdmin;
                 
                 item.innerHTML = `
@@ -1293,6 +1319,7 @@
             replyingToCommentId = commentId;
             const input = document.getElementById('sanitary-comment-input');
             input.placeholder = 'Відповідь на коментар...';
+            updateSanitaryCommentForm();
             input.focus();
         }
 
@@ -1304,31 +1331,39 @@
                 showToast('Будь ласка, напишіть коментар', 'error');
                 return;
             }
-            
+
             const tgUser = getTelegramUser();
             const isAdminUser = isAdmin();
-            const userName = isAdminUser ? 'Адміністратор' : (tgUser ? (tgUser.name || tgUser.username || 'Анонім') : 'Анонім');
+
+            if (!isAdminUser && !replyingToCommentId) {
+                showToast('Додавати коментар може лише адмін. Натисніть «Відповісти».', 'error');
+                return;
+            }
+            if (!isAdminUser && !tgUser) {
+                showToast('Відкрийте додаток у Telegram', 'error');
+                return;
+            }
+            
+            const userName = isAdminUser
+                ? 'Адміністратор'
+                : (tgUser.username ? '@' + tgUser.username : tgUser.name);
             
             try {
                 document.getElementById('db-loading').classList.remove('hidden');
-                
-                const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                const { error } = await sb.from('sanitary_comments').insert({
-                    id: 'sc_' + Date.now(),
+                await DormDatabase.insertSanitaryComment({
+                    adminPassword: isAdminUser && !replyingToCommentId ? currentAdminPassword : null,
                     content: comment,
-                    author_name: userName,
-                    author_telegram_id: tgUser ? tgUser.id : null,
-                    is_admin: isAdminUser,
-                    parent_id: replyingToCommentId || null
+                    parentId: replyingToCommentId,
+                    authorName: userName,
+                    authorTgId: tgUser ? tgUser.id : null,
+                    isAdmin: isAdminUser,
                 });
-                
-                if (error) throw error;
                 
                 commentInput.value = '';
                 replyingToCommentId = null;
                 commentInput.placeholder = 'Напишіть коментар або відповідь...';
                 
-                await refreshMockDB();
+                refreshMockDB();
                 renderSanitaryComments();
                 showToast('Коментар надіслано! 🎉');
             } catch (err) {
@@ -1349,17 +1384,8 @@
             
             try {
                 document.getElementById('db-loading').classList.remove('hidden');
-                
-                const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                const { error } = await sb.rpc('admin_delete_sanitary_comment', {
-                    p_password: currentAdminPassword,
-                    p_id: commentId
-                });
-                
-                if (error) throw error;
-                
-                // Remove from mockDB immediately without full refresh
-                mockDB.sanitaryComments = mockDB.sanitaryComments.filter(c => c.id !== commentId);
+                await DormDatabase.deleteSanitaryComment(currentAdminPassword, commentId);
+                refreshMockDB();
                 renderSanitaryComments();
                 showToast('Коментар видалено! 🗑️');
             } catch (err) {
@@ -1730,6 +1756,24 @@
             list.appendChild(fragment);
         }
 
+        function formatPollEndsAt(endsAt) {
+            if (!endsAt) return '';
+            try {
+                return new Date(endsAt).toLocaleString('uk-UA', {
+                    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+            } catch (_) {
+                return endsAt;
+            }
+        }
+
+        function buildPollVotersHtml(poll, optionIndex) {
+            const voters = DormDatabase.getPollVoters(poll.id).filter(v => Number(v.option_index) === optionIndex);
+            if (!voters.length) return '';
+            const lines = voters.map(v => escapeHtml(DormDatabase.formatPollVoterLabel(v))).join(', ');
+            return `<p class="text-[10px] text-slate-500 dark:text-slate-400 pl-1 mt-0.5 leading-snug">${lines}</p>`;
+        }
+
         function renderPolls() {
             const list = document.getElementById('list-polls');
             if (!list) return;
@@ -1743,42 +1787,54 @@
             mockDB.polls.forEach(p => {
                 const results = DormDatabase.getPollResults(p.id);
                 const myVote = tgUser ? DormDatabase.getUserVote(p.id, tgUser.id) : null;
+                const open = DormDatabase.isPollOpen(p);
+                const expired = DormDatabase.isPollExpired(p);
+                const closed = !open;
+                const showPublicVoters = !p.anonymous;
                 const item = document.createElement('div');
                 item.className = 'p-4 diia-glass-card rounded-[24px] cascade-item space-y-3';
                 let optionsHTML = '';
                 p.options.forEach((label, idx) => {
                     const r = results[idx] || { percent: 0, count: 0 };
                     const voted = myVote === idx;
-                    const canVote = p.active && tgUser && myVote === null;
+                    const canVote = open && tgUser && myVote === null;
+                    const votersHtml = showPublicVoters ? buildPollVotersHtml(p, idx) : '';
                     optionsHTML += `
                         <div class="space-y-1">
                             <div class="flex justify-between items-center gap-2">
                                 ${canVote
-                                    ? `<button type="button" onclick="castPollVote('${p.id}', ${idx})" class="flex-1 text-left px-3 py-2 rounded-xl bg-white/60 dark:bg-slate-800/60 border border-violet-500/30 text-[13px] font-bold text-slate-800 dark:text-slate-100 btn-push">${label}</button>`
-                                    : `<span class="text-[13px] font-bold text-slate-800 dark:text-slate-100 flex-1">${label} ${voted ? '✓' : ''}</span>`
+                                    ? `<button type="button" onclick="castPollVote('${p.id}', ${idx})" class="flex-1 text-left px-3 py-2 rounded-xl bg-white/60 dark:bg-slate-800/60 border border-violet-500/30 text-[13px] font-bold text-slate-800 dark:text-slate-100 btn-push">${escapeHtml(label)}</button>`
+                                    : `<span class="text-[13px] font-bold text-slate-800 dark:text-slate-100 flex-1">${escapeHtml(label)} ${voted ? '✓' : ''}</span>`
                                 }
-                                <span class="text-[11px] font-black text-violet-600">${r.percent}%</span>
+                                <span class="text-[11px] font-black text-violet-600">${r.percent}% <span class="text-slate-400 font-bold">(${r.count})</span></span>
                             </div>
                             <div class="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
                                 <div class="bg-violet-500 h-full rounded-full" style="width:${r.percent}%"></div>
                             </div>
+                            ${votersHtml}
                         </div>`;
                 });
-                if (!tgUser && p.active) {
+                if (!tgUser && open) {
                     optionsHTML += `<p class="text-[11px] text-amber-600 font-bold">Відкрийте додаток у Telegram, щоб голосувати</p>`;
                 }
+                const typeLabel = p.anonymous ? '🔒 Анонімне' : '👥 Публічне';
+                const endsLabel = p.endsAt ? `До: ${formatPollEndsAt(p.endsAt)}` : 'Без дати завершення';
+                const statusLabel = open ? 'Активне' : (expired ? 'Завершено' : 'Закрите');
+                const statusClass = open ? 'bg-emerald-500/10 text-emerald-600' : 'bg-slate-500/10 text-slate-500';
                 item.innerHTML = `
                     <div class="flex justify-between items-start gap-2">
                         <div>
-                            <h4 class="text-[15px] font-black text-slate-800 dark:text-slate-100">${p.title}</h4>
-                            <p class="text-[12px] text-slate-600 dark:text-slate-400 mt-1">${p.desc || ''}</p>
+                            <h4 class="text-[15px] font-black text-slate-800 dark:text-slate-100">${escapeHtml(p.title)}</h4>
+                            <p class="text-[12px] text-slate-600 dark:text-slate-400 mt-1">${escapeHtml(p.desc || '')}</p>
+                            <p class="text-[10px] font-bold text-violet-600 dark:text-violet-400 mt-1">${typeLabel} · ${endsLabel}</p>
                         </div>
-                        <span class="text-[10px] font-black uppercase px-2 py-1 rounded-lg ${p.active ? 'bg-emerald-500/10 text-emerald-600' : 'bg-slate-500/10 text-slate-500'}">${p.active ? 'Активне' : 'Закрите'}</span>
+                        <span class="text-[10px] font-black uppercase px-2 py-1 rounded-lg shrink-0 ${statusClass}">${statusLabel}</span>
                     </div>
+                    ${closed ? `<p class="text-[11px] font-black text-slate-600 dark:text-slate-300 bg-slate-100/80 dark:bg-slate-800/50 rounded-xl px-3 py-2">📊 Підсумок голосування</p>` : ''}
                     <div class="space-y-2">${optionsHTML}</div>
                     ${isAdmin() ? `
                         <div class="flex gap-2 justify-end pt-2 border-t border-slate-200/50 dark:border-slate-700/50">
-                            ${p.active ? `<button type="button" onclick="closePoll('${p.id}')" class="px-3 py-1.5 text-[11px] font-black rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 btn-push">Закрити</button>` : ''}
+                            ${open ? `<button type="button" onclick="closePoll('${p.id}')" class="px-3 py-1.5 text-[11px] font-black rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 btn-push">Закрити</button>` : ''}
                             <button type="button" onclick="handleItemDeletion('polls', '${p.id}')" class="px-3 py-1.5 text-[11px] font-black rounded-lg bg-rose-500/10 text-rose-600 btn-push">Видалити</button>
                         </div>
                     ` : ''}
@@ -1794,9 +1850,10 @@
                 showToast('Голосування лише в Telegram', 'error');
                 return;
             }
+            const voterLabel = tg.username ? '@' + tg.username : tg.name;
             try {
                 document.getElementById('db-loading').classList.remove('hidden');
-                await DormDatabase.castVote(pollId, tg.id, optionIndex);
+                await DormDatabase.castVote(pollId, tg.id, optionIndex, voterLabel);
                 refreshMockDB();
                 renderPolls();
                 showToast('Ваш голос зараховано! 📊');
@@ -2248,6 +2305,11 @@
                         </select>
                     </div>
                     <div class="space-y-1">
+                        <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Дата й час завершення</label>
+                        <input type="datetime-local" id="input-poll-ends" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-slate-100">
+                        <p class="text-[10px] text-slate-500 pl-1">Після цієї дати голосування закриється автоматично, результати зʼявляться в додатку та в боті.</p>
+                    </div>
+                    <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Варіанти (кожен з нового рядка, мін. 2)</label>
                         <textarea id="input-poll-options" rows="4" required placeholder="Так&#10;Ні&#10;Утриматись" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-slate-100"></textarea>
                     </div>
@@ -2326,8 +2388,10 @@
             if (savedAdmin) {
                 try {
                     const ok = await DormDatabase.verifyAdmin(savedAdmin);
-                    if (ok) currentAdminPassword = savedAdmin;
-                    else localStorage.removeItem('pnu_admin_session_v11');
+                    if (ok) {
+                        currentAdminPassword = savedAdmin;
+                        await loadAdminSanitaryReplies();
+                    } else localStorage.removeItem('pnu_admin_session_v11');
                 } catch (_) {
                     localStorage.removeItem('pnu_admin_session_v11');
                 }
@@ -2462,6 +2526,7 @@
                         currentAdminPassword = pass;
                         localStorage.setItem('pnu_admin_session_v11', pass);
                         document.getElementById('modal-auth').classList.add('hidden');
+                        await loadAdminSanitaryReplies();
                         updateAdminUI();
                         renderAll();
                         await renderBotVisitors();
@@ -2474,9 +2539,14 @@
                 }
             });
 
-            document.getElementById('logout-confirm-btn').addEventListener('click', () => {
-                currentAdminPassword = null; localStorage.removeItem('pnu_admin_session_v11');
-                document.getElementById('modal-confirm-logout').classList.add('hidden'); updateAdminUI(); renderAll();
+            document.getElementById('logout-confirm-btn').addEventListener('click', async () => {
+                currentAdminPassword = null;
+                localStorage.removeItem('pnu_admin_session_v11');
+                await DormDatabase.loadSanitaryRepliesAdmin(null);
+                document.getElementById('modal-confirm-logout').classList.add('hidden');
+                updateAdminUI();
+                refreshMockDB();
+                renderAll();
                 showToast('Ви вийшли з сесії адміна 🚪');
             });
 
@@ -2574,12 +2644,24 @@
                             document.getElementById('db-loading').classList.add('hidden');
                             return;
                         }
+                        const endsRaw = document.getElementById('input-poll-ends')?.value;
+                        let endsAt = null;
+                        if (endsRaw) {
+                            const d = new Date(endsRaw);
+                            if (Number.isNaN(d.getTime())) {
+                                showToast('Невірна дата завершення', 'error');
+                                document.getElementById('db-loading').classList.add('hidden');
+                                return;
+                            }
+                            endsAt = d.toISOString();
+                        }
                         payload = {
                             id: 'poll_' + Date.now(),
                             title: document.getElementById('input-poll-title').value,
                             desc: document.getElementById('input-poll-desc').value,
                             options: optsRaw,
-                            anonymous: document.getElementById('input-poll-anonymous').value === 'true'
+                            anonymous: document.getElementById('input-poll-anonymous').value === 'true',
+                            endsAt
                         };
                     } else if (sheet === 'events') {
                         payload = {
