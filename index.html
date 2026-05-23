@@ -602,13 +602,15 @@
                 </div>
                 <div id="list-duty" class="space-y-2.5"></div>
                 
-                <div id="sanitary-comment-section" class="p-5 bg-white/60 dark:bg-slate-900/60 rounded-[28px] border border-white/60 dark:border-slate-700/50 shadow-md backdrop-blur-xl slide-up hidden">
+                <div id="sanitary-comments-section" class="p-5 bg-white/60 dark:bg-slate-900/60 rounded-[28px] border border-white/60 dark:border-slate-700/50 shadow-md backdrop-blur-xl slide-up">
                     <div class="text-[15px] font-black uppercase tracking-wide pb-3 border-b border-slate-200/60 dark:border-slate-700/50 text-slate-800 dark:text-white flex items-center gap-2">
-                        <i class="fa-solid fa-comment-dots text-teal-500"></i> Коментар адміна до санітарки
+                        <i class="fa-solid fa-comments text-teal-500"></i> Коментарі про санітарку
                     </div>
-                    <div class="space-y-3 mt-4">
-                        <textarea id="sanitary-admin-comment" rows="3" placeholder="Залиште коментар про роботу санітарки (бачать усі)..." class="w-full px-4 py-3 text-[14px] font-medium bg-white/70 dark:bg-slate-800/60 border border-white/80 dark:border-slate-600/50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/40 text-slate-800 dark:text-slate-100 shadow-sm transition-all placeholder:text-slate-400 resize-none"></textarea>
-                        <button type="button" id="submit-sanitary-admin-comment-btn" class="w-full py-3 bg-gradient-to-r from-teal-500 to-emerald-600 text-white font-black rounded-2xl text-[15px] btn-push shadow-lg shadow-teal-500/30 uppercase tracking-wide">Надіслати коментар</button>
+                    <div id="sanitary-comments-list" class="space-y-3 mt-4"></div>
+                    
+                    <div id="sanitary-comment-form" class="mt-4 pt-4 border-t border-slate-200/60 dark:border-slate-700/50">
+                        <textarea id="sanitary-comment-input" rows="2" placeholder="Напишіть коментар або відповідь..." class="w-full px-4 py-3 text-[14px] font-medium bg-white/70 dark:bg-slate-800/60 border border-white/80 dark:border-slate-600/50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/40 text-slate-800 dark:text-slate-100 shadow-sm transition-all placeholder:text-slate-400 resize-none"></textarea>
+                        <button type="button" id="submit-sanitary-comment-btn" class="w-full mt-3 py-3 bg-gradient-to-r from-teal-500 to-emerald-600 text-white font-black rounded-2xl text-[15px] btn-push shadow-lg shadow-teal-500/30 uppercase tracking-wide">Надіслати</button>
                     </div>
                 </div>
             </section>
@@ -697,11 +699,6 @@
                         <div>
                             <p class="text-[11px] font-black uppercase text-slate-600 dark:text-slate-400 mb-1">Зареєстровані (/start)</p>
                             <div id="list-registered-users" class="space-y-1.5 max-h-36 overflow-y-auto scrollbar-none"></div>
-                        </div>
-                        <div class="p-2 rounded-lg bg-blue-500/10 border border-blue-400/20">
-                            <p class="text-[11px] font-black text-blue-800 dark:text-blue-300 mb-1">Mini App за 7 днів</p>
-                            <p id="admin-activity-summary" class="text-slate-600 dark:text-slate-300"></p>
-                            <div id="admin-activity-by-day" class="space-y-1 mt-1 max-h-24 overflow-y-auto scrollbar-none"></div>
                         </div>
                     </div>
                 </section>
@@ -1231,13 +1228,76 @@
             }
         }
 
-        async function submitSanitaryAdminComment() {
-            if (!isAdmin()) {
-                showToast('Тільки адмін може писати коментарі', 'error');
+        let replyingToCommentId = null;
+
+        function renderSanitaryComments() {
+            const list = document.getElementById('sanitary-comments-list');
+            list.innerHTML = '';
+            
+            if (!mockDB.sanitaryComments || mockDB.sanitaryComments.length === 0) {
+                list.innerHTML = `<p class="text-[13px] text-slate-500 dark:text-slate-400 text-center py-2 font-medium">Коментарів ще немає</p>`;
                 return;
             }
             
-            const commentInput = document.getElementById('sanitary-admin-comment');
+            const fragment = document.createDocumentFragment();
+            const topLevelComments = mockDB.sanitaryComments.filter(c => !c.parentId);
+            
+            topLevelComments.forEach(comment => {
+                const item = document.createElement('div');
+                item.className = 'p-3 bg-white/40 dark:bg-slate-800/40 rounded-2xl border border-white/50 dark:border-slate-700/50 backdrop-blur-md slide-up';
+                
+                const replies = mockDB.sanitaryComments.filter(r => r.parentId === comment.id);
+                const isAdminComment = comment.isAdmin;
+                
+                item.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-[13px] font-black ${isAdminComment ? 'text-teal-600 dark:text-teal-400' : 'text-slate-700 dark:text-slate-300'}">${isAdmin() ? escapeHtml(comment.authorName) : (isAdminComment ? 'Адмін' : 'Користувач')}</span>
+                                ${isAdminComment ? '<span class="px-2 py-0.5 text-[10px] font-black uppercase bg-teal-500/10 text-teal-600 dark:text-teal-400 rounded-full">Адмін</span>' : ''}
+                                <span class="text-[11px] text-slate-400">${formatDate(comment.createdAt)}</span>
+                            </div>
+                            <p class="text-[14px] text-slate-700 dark:text-slate-300 leading-relaxed">${escapeHtml(comment.content)}</p>
+                        </div>
+                        ${isAdmin() ? `<button class="ml-2 w-6 h-6 flex items-center justify-center rounded bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors text-[11px]" onclick="deleteSanitaryComment('${comment.id}')"><i class="fa-solid fa-trash"></i></button>` : ''}
+                    </div>
+                    <button class="mt-2 text-[12px] font-bold text-slate-500 hover:text-teal-600 transition-colors" onclick="setReplyToComment('${comment.id}')">Відповісти</button>
+                    ${replies.length > 0 ? `
+                        <div class="mt-3 pl-4 border-l-2 border-slate-200 dark:border-slate-700 space-y-2">
+                            ${replies.map(reply => `
+                                <div class="p-2 bg-white/30 dark:bg-slate-700/30 rounded-xl">
+                                    <div class="flex justify-between items-start">
+                                        <div class="flex-1">
+                                            <div class="flex items-center gap-2 mb-1">
+                                                <span class="text-[12px] font-bold text-slate-600 dark:text-slate-400">${isAdmin() ? escapeHtml(reply.authorName) : (reply.isAdmin ? 'Адмін' : 'Користувач')}</span>
+                                                ${reply.isAdmin ? '<span class="px-1.5 py-0.5 text-[9px] font-black uppercase bg-teal-500/10 text-teal-600 dark:text-teal-400 rounded-full">Адмін</span>' : ''}
+                                                <span class="text-[10px] text-slate-400">${formatDate(reply.createdAt)}</span>
+                                            </div>
+                                            <p class="text-[13px] text-slate-600 dark:text-slate-400">${escapeHtml(reply.content)}</p>
+                                        </div>
+                                        ${isAdmin() ? `<button class="ml-2 w-5 h-5 flex items-center justify-center rounded bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors text-[10px]" onclick="deleteSanitaryComment('${reply.id}')"><i class="fa-solid fa-trash"></i></button>` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                `;
+                
+                fragment.appendChild(item);
+            });
+            
+            list.appendChild(fragment);
+        }
+
+        function setReplyToComment(commentId) {
+            replyingToCommentId = commentId;
+            const input = document.getElementById('sanitary-comment-input');
+            input.placeholder = 'Відповідь на коментар...';
+            input.focus();
+        }
+
+        async function submitSanitaryComment() {
+            const commentInput = document.getElementById('sanitary-comment-input');
             const comment = commentInput.value.trim();
             
             if (!comment) {
@@ -1245,23 +1305,84 @@
                 return;
             }
             
+            const tgUser = getTelegramUser();
+            const isAdminUser = isAdmin();
+            const userName = isAdminUser ? 'Адміністратор' : (tgUser ? (tgUser.name || tgUser.username || 'Анонім') : 'Анонім');
+            
             try {
                 document.getElementById('db-loading').classList.remove('hidden');
                 
-                // Send push notification to all users about the admin comment
-                await DormDatabase.notifyPush(
-                    '📢 Коментар адміна про санітарку',
-                    `${comment}`
-                );
+                const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                const { error } = await sb.from('sanitary_comments').insert({
+                    id: 'sc_' + Date.now(),
+                    content: comment,
+                    author_name: userName,
+                    author_telegram_id: tgUser ? tgUser.id : null,
+                    is_admin: isAdminUser,
+                    parent_id: replyingToCommentId || null
+                });
+                
+                if (error) throw error;
                 
                 commentInput.value = '';
-                showToast('Коментар надіслано всім користувачам! 📢');
+                replyingToCommentId = null;
+                commentInput.placeholder = 'Напишіть коментар або відповідь...';
+                
+                await refreshMockDB();
+                renderSanitaryComments();
+                showToast('Коментар надіслано! 🎉');
             } catch (err) {
                 console.error(err);
                 showToast(err.message || 'Помилка надсилання коментаря', 'error');
             } finally {
                 document.getElementById('db-loading').classList.add('hidden');
             }
+        }
+
+        async function deleteSanitaryComment(commentId) {
+            if (!isAdmin()) {
+                showToast('Тільки адмін може видаляти коментарі', 'error');
+                return;
+            }
+            
+            if (!confirm('Видалити цей коментар?')) return;
+            
+            try {
+                document.getElementById('db-loading').classList.remove('hidden');
+                
+                const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                const { error } = await sb.rpc('admin_delete_sanitary_comment', {
+                    p_password: currentAdminPassword,
+                    p_id: commentId
+                });
+                
+                if (error) throw error;
+                
+                // Remove from mockDB immediately without full refresh
+                mockDB.sanitaryComments = mockDB.sanitaryComments.filter(c => c.id !== commentId);
+                renderSanitaryComments();
+                showToast('Коментар видалено! 🗑️');
+            } catch (err) {
+                console.error(err);
+                showToast(err.message || 'Помилка видалення коментаря', 'error');
+            } finally {
+                document.getElementById('db-loading').classList.add('hidden');
+            }
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            
+            if (diffMins < 1) return 'Щойно';
+            if (diffMins < 60) return `${diffMins} хв тому`;
+            if (diffHours < 24) return `${diffHours} год тому`;
+            if (diffDays < 7) return `${diffDays} днів тому`;
+            return date.toLocaleDateString('uk-UA');
         }
 
         function renderAttachmentsHtml(attachments, captionPrefix) {
@@ -1395,15 +1516,7 @@
             document.getElementById('info-app-content').innerHTML = mockDB.info.content;
             document.getElementById('duty-rules-content').innerHTML = mockDB.rules.content;
             
-            // Show sanitary comment section only for admin
-            const sanitaryCommentSection = document.getElementById('sanitary-comment-section');
-            if (sanitaryCommentSection) {
-                if (isAdmin()) {
-                    sanitaryCommentSection.classList.remove('hidden');
-                } else {
-                    sanitaryCommentSection.classList.add('hidden');
-                }
-            }
+            renderSanitaryComments();
         }
 
         function renderGoals(totalBalance) {
@@ -1810,7 +1923,7 @@
                             <i class="fa-solid fa-grip-vertical"></i>
                         </div>
                         <div class="w-12 h-12 rounded-full bg-slate-200/80 dark:bg-slate-800 flex items-center justify-center border-2 border-white dark:border-slate-700 font-black text-xl shrink-0 text-slate-600 dark:text-slate-400 shadow-sm overflow-hidden">
-                            ${l.photo ? `<img src="${l.photo}" alt="${escapeHtml(l.name)}" class="w-full h-full object-cover">` : l.name.charAt(0)}
+                            ${l.photo ? `<img src="${l.photo}" alt="${escapeHtml(l.name)}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.textContent='${l.name.charAt(0)}';">` : l.name.charAt(0)}
                         </div>
                         <div class="min-w-0 flex-1">
                             <span class="text-[11px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 block leading-none mb-1.5">${l.role}</span>
@@ -2108,7 +2221,12 @@
                     <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Фото (необов'язково)</label>
                         <input type="file" id="input-lead-photo" accept="image/*" class="w-full text-[13px] file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[13px] file:font-black file:bg-blue-500/10 file:text-blue-600 cursor-pointer">
-                        ${item && item.photo ? `<p class="text-[11px] text-slate-500 pl-1">Поточне фото: <span class="text-blue-600">${item.photo}</span></p>` : ''}
+                        ${item && item.photo ? `
+                            <div class="flex items-center justify-between mt-1">
+                                <p class="text-[11px] text-slate-500 pl-1">Поточне фото: <span class="text-blue-600">${item.photo}</span></p>
+                                <button type="button" id="delete-lead-photo-btn" class="text-[11px] font-black text-rose-500 hover:text-rose-600 transition-colors">Видалити фото</button>
+                            </div>
+                        ` : ''}
                     </div>
                 `;
             } else if (sheet === 'polls') {
@@ -2121,6 +2239,13 @@
                     <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Опис (необовʼязково)</label>
                         <textarea id="input-poll-desc" rows="2" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-slate-100"></textarea>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Тип голосування</label>
+                        <select id="input-poll-anonymous" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-slate-100 transition-all">
+                            <option value="true">Анонімне (не показує хто проголосував)</option>
+                            <option value="false">Публічне (показує хто проголосував)</option>
+                        </select>
                     </div>
                     <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Варіанти (кожен з нового рядка, мін. 2)</label>
@@ -2155,6 +2280,16 @@
                 `;
             }
             document.getElementById('modal-crud-form').classList.remove('hidden');
+        
+        // Add event listener for delete photo button
+        const deletePhotoBtn = document.getElementById('delete-lead-photo-btn');
+        if (deletePhotoBtn) {
+            deletePhotoBtn.addEventListener('click', () => {
+                deletePhotoBtn.dataset.delete = 'true';
+                deletePhotoBtn.textContent = 'Фото буде видалено при збереженні';
+                deletePhotoBtn.classList.add('text-rose-600');
+            });
+        }
         }
 
         window.addEventListener('DOMContentLoaded', async () => {
@@ -2231,7 +2366,7 @@
                 document.getElementById('modal-duty-sanitary').classList.add('hidden');
             });
             document.getElementById('duty-sanitary-save')?.addEventListener('click', () => saveDutySanitaryFromModal());
-            document.getElementById('submit-sanitary-admin-comment-btn')?.addEventListener('click', submitSanitaryAdminComment);
+            document.getElementById('submit-sanitary-comment-btn')?.addEventListener('click', submitSanitaryComment);
 
             document.getElementById('confirm-cancel-btn').addEventListener('click', () => {
                 document.getElementById('modal-custom-confirm').classList.add('hidden'); confirmCallback = null;
@@ -2443,7 +2578,8 @@
                             id: 'poll_' + Date.now(),
                             title: document.getElementById('input-poll-title').value,
                             desc: document.getElementById('input-poll-desc').value,
-                            options: optsRaw
+                            options: optsRaw,
+                            anonymous: document.getElementById('input-poll-anonymous').value === 'true'
                         };
                     } else if (sheet === 'events') {
                         payload = {
@@ -2466,13 +2602,19 @@
                     } else if (sheet === 'leaders') {
                         const photoInput = document.getElementById('input-lead-photo');
                         let photoUrl = '';
-                        if (photoInput && photoInput.files.length > 0) {
+                        const deletePhotoBtn = document.getElementById('delete-lead-photo-btn');
+                        
+                        // Check if photo should be deleted
+                        if (deletePhotoBtn && deletePhotoBtn.dataset.delete === 'true') {
+                            photoUrl = '';
+                        } else if (photoInput && photoInput.files.length > 0) {
                             const files = await DormDatabase.uploadFilesFromInput(photoInput, 'leaders');
                             photoUrl = files.length > 0 ? files[0].url : '';
                         } else if (action === 'edit' && rowId) {
                             const existingLeader = mockDB.leaders.find(l => l.id === rowId);
                             photoUrl = existingLeader ? (existingLeader.photo || '') : '';
                         }
+                        
                         payload = {
                             id: action === 'add' ? 'l_' + Date.now() : rowId,
                             role: document.getElementById('input-lead-role').value,
