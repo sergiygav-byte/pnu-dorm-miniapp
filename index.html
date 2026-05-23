@@ -7,7 +7,7 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.public.js"></script>
-    <script src="database.js?v=20260523-features-v9b"></script>
+    <script src="database.js?v=20260523-features-v9c"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
@@ -388,10 +388,11 @@
         <p class="text-white font-bold text-[14px]">Завантаження даних…</p>
     </div>
 
-    <div id="maintenance-overlay" class="fixed inset-0 z-[115] bg-slate-950/95 backdrop-blur-xl hidden flex flex-col items-center justify-center p-6 text-center">
-        <div id="maintenance-overlay-icon" role="button" tabindex="0" aria-label="Технічний доступ" class="w-20 h-20 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-4xl mb-5 cursor-pointer btn-push ring-2 ring-transparent active:ring-amber-400/50 transition-all select-none">
-            <i class="fa-solid fa-screwdriver-wrench"></i>
+    <div id="maintenance-overlay" class="fixed inset-0 z-[115] bg-slate-950/95 backdrop-blur-xl hidden flex flex-col items-center justify-center p-6 text-center touch-manipulation">
+        <div id="maintenance-overlay-icon" role="button" tabindex="0" aria-label="Технічний доступ" class="w-24 h-24 rounded-full bg-amber-500/25 text-amber-400 flex items-center justify-center text-4xl mb-5 cursor-pointer ring-2 ring-amber-400/30 active:scale-95 active:bg-amber-500/35 transition-all select-none touch-manipulation" style="touch-action:manipulation;-webkit-tap-highlight-color:transparent">
+            <i class="fa-solid fa-screwdriver-wrench pointer-events-none"></i>
         </div>
+        <p id="maintenance-tap-hint" class="hidden text-[11px] text-amber-400/90 font-bold mt-1">Ще <span id="maintenance-tap-left">0</span> натискань…</p>
         <h2 class="text-[22px] font-black text-white mb-2">Йде оновлення додатку</h2>
         <p class="text-[15px] text-slate-300 max-w-xs">Скоро все буде працювати. Зайдіть пізніше.</p>
     </div>
@@ -942,6 +943,7 @@
         const MAINTENANCE_BYPASS_KEY = 'pnu_maintenance_bypass';
         let maintenanceIconTapCount = 0;
         let maintenanceIconTapTimer = null;
+        let maintenanceLastTouchAt = 0;
         window._pollVotersOpen = window._pollVotersOpen || {};
 
         let leadPhotoCrop = { img: null, zoom: 1, markedDelete: false };
@@ -955,6 +957,73 @@
             if (!overlay) return;
             const show = !!(mockDB.maintenanceMode && !hasMaintenanceBypass());
             overlay.classList.toggle('hidden', !show);
+            if (show) {
+                maintenanceIconTapCount = 0;
+                const hint = document.getElementById('maintenance-tap-hint');
+                if (hint) hint.classList.add('hidden');
+                bindMaintenanceOverlayGestures();
+            }
+        }
+
+        function handleMaintenanceIconTap() {
+            maintenanceIconTapCount++;
+            clearTimeout(maintenanceIconTapTimer);
+            maintenanceIconTapTimer = setTimeout(() => {
+                maintenanceIconTapCount = 0;
+                const hint = document.getElementById('maintenance-tap-hint');
+                if (hint) hint.classList.add('hidden');
+            }, 3500);
+
+            const left = 5 - maintenanceIconTapCount;
+            const hint = document.getElementById('maintenance-tap-hint');
+            const leftEl = document.getElementById('maintenance-tap-left');
+            if (hint && leftEl && left > 0) {
+                hint.classList.remove('hidden');
+                leftEl.textContent = String(left);
+            }
+
+            try {
+                window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light');
+            } catch (_) {}
+
+            if (maintenanceIconTapCount >= 5) {
+                maintenanceIconTapCount = 0;
+                clearTimeout(maintenanceIconTapTimer);
+                if (hint) hint.classList.add('hidden');
+                try {
+                    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success');
+                } catch (_) {}
+                openMaintenanceModal();
+            }
+        }
+
+        function bindMaintenanceOverlayGestures() {
+            const overlay = document.getElementById('maintenance-overlay');
+            const icon = document.getElementById('maintenance-overlay-icon');
+            if (!overlay || !icon || overlay.dataset.gesturesBound === '1') return;
+            overlay.dataset.gesturesBound = '1';
+
+            function isIconTarget(target) {
+                return target === icon || icon.contains(target);
+            }
+
+            function onPointerUp(e) {
+                if (overlay.classList.contains('hidden') || !isIconTarget(e.target)) return;
+                if (e.type === 'touchend') {
+                    maintenanceLastTouchAt = Date.now();
+                    e.preventDefault();
+                }
+                if (e.type === 'click' && Date.now() - maintenanceLastTouchAt < 600) return;
+                handleMaintenanceIconTap();
+            }
+
+            icon.addEventListener('touchend', onPointerUp, { passive: false });
+            icon.addEventListener('click', onPointerUp);
+            icon.addEventListener('pointerup', (e) => {
+                if (e.pointerType === 'touch') return;
+                if (overlay.classList.contains('hidden') || !isIconTarget(e.target)) return;
+                handleMaintenanceIconTap();
+            });
         }
 
         function openMaintenanceModal() {
@@ -2569,29 +2638,13 @@
             document.getElementById('re-open-onboarding-btn').addEventListener('click', () => openWelcomeInstruction(true));
             document.getElementById('app-refresh-btn').addEventListener('click', refreshAppData);
 
-            function onMaintenanceIconTap() {
-                maintenanceIconTapCount++;
-                clearTimeout(maintenanceIconTapTimer);
-                maintenanceIconTapTimer = setTimeout(() => { maintenanceIconTapCount = 0; }, 800);
-                if (maintenanceIconTapCount >= 5) {
-                    maintenanceIconTapCount = 0;
-                    openMaintenanceModal();
+            bindMaintenanceOverlayGestures();
+            document.getElementById('maintenance-overlay-icon')?.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleMaintenanceIconTap();
                 }
-            }
-            const maintIcon = document.getElementById('maintenance-overlay-icon');
-            if (maintIcon) {
-                maintIcon.addEventListener('click', onMaintenanceIconTap);
-                maintIcon.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        onMaintenanceIconTap();
-                    }
-                });
-            }
-            const maintTitle = document.getElementById('app-title-maintenance-trigger');
-            if (maintTitle) {
-                maintTitle.addEventListener('click', onMaintenanceIconTap);
-            }
+            });
             document.getElementById('maintenance-enable-btn')?.addEventListener('click', () => runMaintenanceAction(true));
             document.getElementById('maintenance-disable-btn')?.addEventListener('click', () => runMaintenanceAction(false));
             document.getElementById('maintenance-cancel-btn')?.addEventListener('click', () => {
