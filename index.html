@@ -56,14 +56,14 @@
         .bg-diia-light {
             background: linear-gradient(-45deg, #fbc1c1, #ff9e9e, #b3e5fc, #c3d1ed, #f8bbd0);
             background-size: 400% 400%;
-            animation: gradient-flow 12s ease-in-out infinite;
+            animation: gradient-flow 24s ease-in-out infinite;
         }
         
                         /* Живий багатошаровий градієнт для темної теми (світліша адаптація) */
         .dark body, .dark .bg-diia-light {
             background: linear-gradient(-45deg, #6c4246, #6c3c5b, #3d3b6a, #4a6a8c, #634d52);
             background-size: 400% 400%;
-            animation: gradient-flow 14s ease-in-out infinite;
+            animation: gradient-flow 28s ease-in-out infinite;
         }
 
         @keyframes gradient-flow {
@@ -75,11 +75,11 @@
         /* Покращений Гласморфізм */
         .diia-glass-card {
             background: rgba(255, 255, 255, 0.45);
-            backdrop-filter: blur(24px) saturate(160%);
-            -webkit-backdrop-filter: blur(24px) saturate(160%);
+            backdrop-filter: blur(14px) saturate(145%);
+            -webkit-backdrop-filter: blur(14px) saturate(145%);
             border: 1px solid rgba(255, 255, 255, 0.6);
             box-shadow: 0 12px 40px -10px rgba(31, 38, 135, 0.1);
-            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s ease, background 0.4s ease;
+            transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
             position: relative;
             overflow: hidden;
         }
@@ -92,8 +92,8 @@
 
         .dark .diia-glass-card {
             background: rgba(15, 23, 42, 0.55);
-            backdrop-filter: blur(28px) saturate(180%);
-            -webkit-backdrop-filter: blur(28px) saturate(180%);
+            backdrop-filter: blur(16px) saturate(150%);
+            -webkit-backdrop-filter: blur(16px) saturate(150%);
             border: 1px solid rgba(255, 255, 255, 0.08);
             box-shadow: 0 15px 45px rgba(0, 0, 0, 0.4);
         }
@@ -111,7 +111,7 @@
             width: 50%; height: 100%;
             background: linear-gradient(to right, transparent, rgba(255,255,255,0.2), transparent);
             transform: skewX(-25deg);
-            animation: shimmer 6s infinite ease-in-out;
+            animation: shimmer 12s infinite ease-in-out;
             pointer-events: none;
         }
         .dark .diia-glass-card::before {
@@ -137,30 +137,30 @@
 
         /* Плавна поява списків (Каскад) */
         @keyframes listStaggerIn {
-            0% { opacity: 0; transform: translateY(20px) scale(0.98); filter: blur(5px); }
-            100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
         }
         
         .cascade-item {
-            animation: listStaggerIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+            animation: listStaggerIn 0.22s ease-out forwards;
             opacity: 0;
         }
         
         /* Затримка для каскаду, якщо елементів багато */
-        .cascade-item:nth-child(1) { animation-delay: 0.05s; }
-        .cascade-item:nth-child(2) { animation-delay: 0.1s; }
-        .cascade-item:nth-child(3) { animation-delay: 0.15s; }
-        .cascade-item:nth-child(4) { animation-delay: 0.2s; }
-        .cascade-item:nth-child(5) { animation-delay: 0.25s; }
+        .cascade-item:nth-child(1) { animation-delay: 0.02s; }
+        .cascade-item:nth-child(2) { animation-delay: 0.04s; }
+        .cascade-item:nth-child(3) { animation-delay: 0.06s; }
+        .cascade-item:nth-child(4) { animation-delay: 0.08s; }
+        .cascade-item:nth-child(5) { animation-delay: 0.1s; }
 
         /* Перемикання вкладок */
         @keyframes tabFadeIn {
-            0% { opacity: 0; transform: scale(0.96) translateY(12px); filter: blur(4px); }
-            100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+            0% { opacity: 0; transform: translateY(6px); }
+            100% { opacity: 1; transform: translateY(0); }
         }
 
         .tab-content-active {
-            animation: tabFadeIn 0.5s cubic-bezier(0.25, 1, 0.3, 1) forwards;
+            animation: tabFadeIn 0.2s ease-out forwards;
         }
 
         /* Модальні вікна - Spring ефект */
@@ -666,6 +666,8 @@
         let visiblePaymentsCount = 4;
         let visibleExpensesCount = 4;
         let currentWelcomeStep = 0;
+        let isRefreshingAppData = false;
+        let lastActiveTabId = 'tab-budget';
 
         const onboardingSteps = [
             { title: "Вітаємо у додатку! 👋", icon: "fa-rocket", text: "✨ <b>Гуртожиток №1 ПНУ</b> тепер повністю у твоєму смартфоні!<br><br>Ця цифрова платформа створена для того, щоб зробити життя в нашому студентському домі максимально прозорим, організованим та комфортним для кожного." },
@@ -729,8 +731,20 @@
             return normalized.startsWith('+') ? normalized : `+${normalized}`;
         }
 
+        function debounce(fn, delay = 180) {
+            let timer = null;
+            return (...args) => {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn(...args), delay);
+            };
+        }
+
         async function refreshAppData() {
+            if (isRefreshingAppData) return;
+            isRefreshingAppData = true;
+            const btn = document.getElementById('app-refresh-btn');
             try {
+                if (btn) btn.disabled = true;
                 document.getElementById('db-loading').classList.remove('hidden');
                 await DormDatabase.loadDB();
                 refreshMockDB();
@@ -741,6 +755,8 @@
                 showToast(err.message || 'Помилка оновлення', 'error');
             } finally {
                 document.getElementById('db-loading').classList.add('hidden');
+                if (btn) btn.disabled = false;
+                isRefreshingAppData = false;
             }
         }
 
@@ -1115,6 +1131,7 @@
                 goalsContainer.innerHTML = `<p class="text-[14px] text-slate-500 dark:text-slate-400 text-center py-2 font-medium">Цілей немає</p>`;
                 return;
             }
+            const fragment = document.createDocumentFragment();
             mockDB.goals.forEach(g => {
                 let progressPercent = Math.min(Math.round((totalBalance / g.target) * 100), 100);
                 if (progressPercent < 0) progressPercent = 0;
@@ -1136,8 +1153,9 @@
                         <div class="bg-blue-600 h-full rounded-full transition-all duration-1000 ease-out" style="width: ${progressPercent}%"></div>
                     </div>
                 `;
-                goalsContainer.appendChild(card);
+                fragment.appendChild(card);
             });
+            goalsContainer.appendChild(fragment);
         }
 
         function renderPayments() {
@@ -1152,6 +1170,7 @@
                 document.getElementById('load-more-payments-btn').classList.add('hidden');
                 return;
             }
+            const fragment = document.createDocumentFragment();
             visible.forEach(p => {
                 const item = document.createElement('div');
                 item.className = 'p-3.5 flex items-center justify-between cascade-item';
@@ -1178,8 +1197,9 @@
                         ` : ''}
                     </div>
                 `;
-                list.appendChild(item);
+                fragment.appendChild(item);
             });
+            list.appendChild(fragment);
             if (filtered.length > visiblePaymentsCount) {
                 document.getElementById('load-more-payments-btn').classList.remove('hidden');
             } else {
@@ -1195,6 +1215,7 @@
                 return;
             }
             let visible = mockDB.expenses.slice(0, visibleExpensesCount);
+            const fragment = document.createDocumentFragment();
             visible.forEach(e => {
                 const item = document.createElement('div');
                 item.className = 'p-4 space-y-2.5 cascade-item';
@@ -1220,8 +1241,9 @@
                     <p class="text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed font-medium">${e.desc}</p>
                     ${photosHTML}
                 `;
-                list.appendChild(item);
+                fragment.appendChild(item);
             });
+            list.appendChild(fragment);
             if (mockDB.expenses.length > visibleExpensesCount) {
                 document.getElementById('load-more-expenses-btn').classList.remove('hidden');
             } else {
@@ -1236,6 +1258,7 @@
                 list.innerHTML = `<p class="text-[14px] text-slate-500 dark:text-slate-400 text-center py-6 font-medium">Немає важливих оголошень та подій 📢</p>`;
                 return;
             }
+            const fragment = document.createDocumentFragment();
             mockDB.events.forEach(ev => {
                 const item = document.createElement('div');
                 item.className = 'p-5 space-y-2.5 relative cascade-item';
@@ -1258,8 +1281,9 @@
                         <i class="fa-solid fa-location-dot text-blue-500 text-lg drop-shadow-sm"></i> <span class="text-slate-800 dark:text-slate-200">${ev.location}</span>
                     </div>
                 `;
-                list.appendChild(item);
+                fragment.appendChild(item);
             });
+            list.appendChild(fragment);
         }
 
         function renderDuty() {
@@ -1270,6 +1294,7 @@
                 list.innerHTML = `<p class="text-[14px] text-slate-500 dark:text-slate-400 text-center py-5 italic font-medium">Немає призначених чергових для цього поверху</p>`;
                 return;
             }
+            const fragment = document.createDocumentFragment();
             filtered.forEach(d => {
                 const item = document.createElement('div');
                 item.className = 'p-3.5 cascade-item space-y-2';
@@ -1305,8 +1330,9 @@
                     </div>
                     ${commentHtml}
                 `;
-                list.appendChild(item);
+                fragment.appendChild(item);
             });
+            list.appendChild(fragment);
         }
 
         function renderPolls() {
@@ -1318,6 +1344,7 @@
                 list.innerHTML = `<p class="text-[14px] text-slate-500 dark:text-slate-400 text-center py-3 font-medium">Активних опитувань немає</p>`;
                 return;
             }
+            const fragment = document.createDocumentFragment();
             mockDB.polls.forEach(p => {
                 const results = DormDatabase.getPollResults(p.id);
                 const myVote = tgUser ? DormDatabase.getUserVote(p.id, tgUser.id) : null;
@@ -1361,8 +1388,9 @@
                         </div>
                     ` : ''}
                 `;
-                list.appendChild(item);
+                fragment.appendChild(item);
             });
+            list.appendChild(fragment);
         }
 
         async function castPollVote(pollId, optionIndex) {
@@ -1406,6 +1434,7 @@
                 list.innerHTML = `<p class="text-[14px] text-slate-500 dark:text-slate-400 text-center py-4 italic font-medium">Звернень поки що немає</p>`;
                 return;
             }
+            const fragment = document.createDocumentFragment();
             mockDB.complaints.forEach(c => {
                 const item = document.createElement('div');
                 item.className = 'p-4 space-y-3 cascade-item relative';
@@ -1438,8 +1467,9 @@
                         </div>
                     ` : ''}
                 `;
-                list.appendChild(item);
+                fragment.appendChild(item);
             });
+            list.appendChild(fragment);
         }
 
         async function changeComplaintStatus(id, newStatus) {
@@ -1474,6 +1504,7 @@
         function renderLeaders() {
             const list = document.getElementById('list-leaders');
             list.innerHTML = '';
+            const fragment = document.createDocumentFragment();
             mockDB.leaders.forEach(l => {
                 const item = document.createElement('div');
                 item.className = 'p-3.5 flex justify-between items-center cascade-item';
@@ -1510,8 +1541,9 @@
                         ` : ''}
                     </div>
                 `;
-                list.appendChild(item);
+                fragment.appendChild(item);
             });
+            list.appendChild(fragment);
         }
 
         function openLightbox(url, caption) {
@@ -1827,6 +1859,8 @@
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const tabId = btn.getAttribute('data-tab');
+                    if (tabId === lastActiveTabId) return;
+                    lastActiveTabId = tabId;
                     
                     const icon = btn.querySelector('i, svg');
                     if (icon) {
@@ -1872,7 +1906,7 @@
                 document.getElementById('subtab-payments').classList.add('hidden');
             });
 
-            document.getElementById('search-payments').addEventListener('input', renderPayments);
+            document.getElementById('search-payments').addEventListener('input', debounce(renderPayments, 160));
             document.getElementById('load-more-payments-btn').addEventListener('click', () => { visiblePaymentsCount += 4; renderPayments(); });
             document.getElementById('load-more-expenses-btn').addEventListener('click', () => { visibleExpensesCount += 4; renderExpenses(); });
 
