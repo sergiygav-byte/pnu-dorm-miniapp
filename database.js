@@ -258,6 +258,29 @@
         );
     }
 
+    async function setBotUserBlocked(adminPassword, telegramUserId, blocked) {
+        const sb = getClient();
+        const { error } = await sb.rpc('admin_set_bot_user_blocked', {
+            p_password: adminPassword,
+            p_tg_id: String(telegramUserId || ''),
+            p_blocked: !!blocked,
+        });
+        if (error) throw error;
+    }
+
+    async function isBotUserBlocked(telegramUserId) {
+        if (!telegramUserId) return false;
+        const sb = getClient();
+        const { data, error } = await sb.rpc('is_bot_user_blocked', {
+            p_tg_id: String(telegramUserId),
+        });
+        if (error) {
+            console.warn('is_bot_user_blocked', error);
+            return false;
+        }
+        return !!data;
+    }
+
     async function updateDutySanitary(adminPassword, dutyId, { status, comment, dutyTime }) {
         const sb = getClient();
         const { error } = await sb.rpc('admin_update_duty_sanitary', {
@@ -554,6 +577,8 @@
         getBotPushEnabled,
         setBotPushEnabled,
         getUsersDashboard,
+        setBotUserBlocked,
+        isBotUserBlocked,
         updateDutySanitary,
         setNotificationsEnabledCache: (enabled) => {
             notificationsEnabledCache = !!enabled;

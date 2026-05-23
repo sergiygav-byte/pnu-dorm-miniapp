@@ -1,7 +1,3 @@
-/**
- * Нагадування про санітарку вранці в день чергування (Europe/Kyiv).
- */
-
 import { sendPushMessages, supabaseRpc } from './lib/push-helpers.js';
 
 function formatDutyLine(d) {
@@ -38,42 +34,60 @@ export default async function handler(req, res) {
   }
 
   try {
-    const shouldSend = await supabaseRpc('should_send_duty_reminder_today');
-    if (!shouldSend) {
+    const due = await supabaseRpc('get_due_duty_reminders_kyiv');
+    const morningList = Array.isArray(due?.morning) ? due.morning : [];
+    const hourList = Array.isArray(due?.hour) ? due.hour : [];
+    const results = [];
+
+    if (!morningList.length && !hourList.length) {
       return res.status(200).json({
         ok: true,
         skipped: true,
-        hint: 'Сповіщення вимкнені, нагадування вимкнені, або вже надіслано на сьогодні',
+        hint: 'Немає нагадувань, які потрібно надіслати зараз',
       });
     }
 
-    const duties = await supabaseRpc('get_duty_sanitary_today_kyiv');
-    const list = Array.isArray(duties) ? duties : [];
-    if (!list.length) {
-      return res.status(200).json({ ok: true, skipped: true, hint: 'Немає чергувань на сьогодні' });
+    if (morningList.length) {
+      const todayIso = morningList[0]?.date || new Date().toISOString().slice(0, 10);
+      const todayLabel = formatUkrDate(todayIso);
+      const lines = morningList.map(formatDutyLine).join('\n');
+      const message = `Сьогодні, <b>${todayLabel}</b>, санітарне чергування:\n\n${lines}\n\nДеталі у додатку → вкладка «Санітарка».`;
+      const result = await sendPushMessages({
+        title: '🧹 Нагадування: санітарка сьогодні',
+        message,
+        targetTgId: null,
+        forceBroadcast: true,
+      });
+      if (result.sent > 0 || result.total === 0) {
+        await supabaseRpc('mark_duty_reminders_sent', {
+          p_kind: 'morning',
+          p_ids: morningList.map((d) => String(d.id)),
+        });
+      }
+      results.push({ kind: 'morning', duties: morningList.length, ...result });
     }
 
-    const todayIso = list[0]?.date || new Date().toISOString().slice(0, 10);
-    const todayLabel = formatUkrDate(todayIso);
-    const lines = list.map(formatDutyLine).join('\n');
-    const message = `Сьогодні, <b>${todayLabel}</b>, санітарне чергування:\n\n${lines}\n\nДеталі у додатку → вкладка «Інфо» / чергування.`;
-
-    const result = await sendPushMessages({
-      title: '🧹 Нагадування: санітарка сьогодні',
-      message,
-      targetTgId: null,
-      forceBroadcast: true,
-    });
-
-    if (result.sent > 0 || result.total === 0) {
-      await supabaseRpc('mark_duty_reminders_sent_today');
+    if (hourList.length) {
+      const lines = hourList.map(formatDutyLine).join('\n');
+      const message = `За годину починається санітарне чергування:\n\n${lines}\n\nБудь ласка, підготуйтеся та не забудьте відмітку чистоти.`;
+      const result = await sendPushMessages({
+        title: '⏰ Санітарка за годину',
+        message,
+        targetTgId: null,
+        forceBroadcast: true,
+      });
+      if (result.sent > 0 || result.total === 0) {
+        await supabaseRpc('mark_duty_reminders_sent', {
+          p_kind: 'hour',
+          p_ids: hourList.map((d) => String(d.id)),
+        });
+      }
+      results.push({ kind: 'hour', duties: hourList.length, ...result });
     }
 
     return res.status(200).json({
       ok: true,
-      duties: list.length,
-      date: todayIso,
-      ...result,
+      results,
     });
   } catch (err) {
     console.error(err);

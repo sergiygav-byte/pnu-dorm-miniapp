@@ -34,6 +34,24 @@ async function registerSubscriber(message) {
   });
 }
 
+async function isSubscriberBlocked(message) {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_ANON_KEY;
+  const tgId = message?.from?.id ? String(message.from.id) : '';
+  if (!url || !key || !tgId) return false;
+  const res = await fetch(`${url}/rest/v1/rpc/is_bot_user_blocked`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify({ p_tg_id: tgId }),
+  });
+  if (!res.ok) return false;
+  return (await res.json()) === true;
+}
+
 const WEBAPP_URL =
   process.env.WEBAPP_URL ||
   'https://sergiygav-byte.github.io/pnu-dorm-miniapp/index.html';
@@ -91,6 +109,14 @@ export default async function handler(req, res) {
   const text = message.text.trim();
   const isStart = /^\/start(\s|$)/.test(text);
   const isHelp = text === '/help';
+
+  if (await isSubscriberBlocked(message)) {
+    await telegramApi(token, 'sendMessage', {
+      chat_id: chatId,
+      text: '🚫 Доступ до бота обмежено адміністратором.',
+    });
+    return res.status(200).json({ ok: true, blocked: true });
+  }
 
   if (isStart || isHelp) {
     await registerSubscriber(message);

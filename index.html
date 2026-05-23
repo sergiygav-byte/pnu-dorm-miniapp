@@ -207,6 +207,10 @@
         <p class="text-white font-bold text-[14px]">Завантаження даних…</p>
     </div>
 
+    <button id="app-refresh-btn" type="button" class="fixed right-4 bottom-24 z-40 w-11 h-11 rounded-2xl bg-white/75 dark:bg-slate-900/75 text-slate-700 dark:text-slate-200 border border-white/70 dark:border-slate-700/70 shadow-lg backdrop-blur-xl btn-push flex items-center justify-center">
+        <i class="fa-solid fa-rotate text-[15px]"></i>
+    </button>
+
     <div id="modal-welcome-instruction" class="fixed inset-0 z-50 bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-xl hidden flex items-center justify-center p-4 transition-all">
         <div class="w-full max-w-sm bg-white/95 dark:bg-slate-900/95 rounded-diia p-6 shadow-2xl border border-white/40 dark:border-slate-700/50 animate-modal max-h-[90vh] flex flex-col justify-between backdrop-blur-md">
             <div class="space-y-4">
@@ -719,6 +723,45 @@
             };
         }
 
+        function normalizePhoneHref(phone) {
+            const normalized = String(phone || '').replace(/[^\d+]/g, '');
+            if (!normalized) return '';
+            return normalized.startsWith('+') ? normalized : `+${normalized}`;
+        }
+
+        async function refreshAppData() {
+            try {
+                document.getElementById('db-loading').classList.remove('hidden');
+                await DormDatabase.loadDB();
+                refreshMockDB();
+                renderAll();
+                if (isAdmin()) await renderBotVisitors();
+                showToast('Інформацію оновлено 🔄');
+            } catch (err) {
+                showToast(err.message || 'Помилка оновлення', 'error');
+            } finally {
+                document.getElementById('db-loading').classList.add('hidden');
+            }
+        }
+
+        async function enforceBlockedUser() {
+            const tgUser = getTelegramUser();
+            if (!tgUser) return false;
+            const blocked = await DormDatabase.isBotUserBlocked(tgUser.id);
+            if (!blocked) return false;
+            document.body.innerHTML = `
+                <div class="min-h-screen flex items-center justify-center p-6 bg-slate-950 text-white text-center">
+                    <div class="max-w-sm p-6 rounded-[28px] bg-white/10 border border-white/15 shadow-2xl">
+                        <div class="w-16 h-16 mx-auto rounded-full bg-rose-500/20 text-rose-300 flex items-center justify-center text-3xl mb-4">
+                            <i class="fa-solid fa-ban"></i>
+                        </div>
+                        <h1 class="text-xl font-black mb-2">Доступ обмежено</h1>
+                        <p class="text-sm text-slate-300">Ваш акаунт заблокований адміністратором бота.</p>
+                    </div>
+                </div>`;
+            return true;
+        }
+
         function escapeAttr(s) {
             return String(s).replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
         }
@@ -812,11 +855,33 @@
             const nick = r.username ? '@' + r.username : '(без @username)';
             const name = [r.first_name, r.last_name].filter(Boolean).join(' ') || '—';
             const lastLabel = formatDateTime(r.last_activity || r.last_webapp_at || r.last_seen_at);
-            return `<div class="p-2 rounded-lg bg-white/50 dark:bg-slate-800/50 border border-white/60 dark:border-slate-700/50">
-                <div class="font-black text-slate-800 dark:text-slate-100 text-[12px]">${escapeHtml(nick)}${online ? ' <span class="text-emerald-600 text-[10px]">● онлайн</span>' : ''}</div>
-                <div class="text-[11px] text-slate-500">${escapeHtml(name)} · ${lastLabel}</div>
+            const blocked = r.is_blocked === true;
+            const actionBtn = r.telegram_user_id
+                ? `<button type="button" onclick="toggleBotUserBlock('${escapeAttr(r.telegram_user_id)}', ${blocked ? 'false' : 'true'})" class="px-2 py-1 rounded-lg text-[10px] font-black shrink-0 ${blocked ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'}">${blocked ? 'Розблок.' : 'Блок'}</button>`
+                : '';
+            return `<div class="p-2 rounded-lg bg-white/50 dark:bg-slate-800/50 border border-white/60 dark:border-slate-700/50 flex items-center justify-between gap-2">
+                <div class="min-w-0">
+                    <div class="font-black text-slate-800 dark:text-slate-100 text-[12px] truncate">${escapeHtml(nick)}${online ? ' <span class="text-emerald-600 text-[10px]">● онлайн</span>' : ''}${blocked ? ' <span class="text-rose-600 text-[10px]">● заблок.</span>' : ''}</div>
+                    <div class="text-[11px] text-slate-500 truncate">${escapeHtml(name)} · ${lastLabel}</div>
+                </div>
+                ${actionBtn}
             </div>`;
         }
+
+        async function toggleBotUserBlock(telegramUserId, blocked) {
+            if (!isAdmin()) return;
+            try {
+                document.getElementById('db-loading').classList.remove('hidden');
+                await DormDatabase.setBotUserBlocked(currentAdminPassword, telegramUserId, blocked);
+                await renderBotVisitors();
+                showToast(blocked ? 'Користувача заблоковано 🚫' : 'Користувача розблоковано ✅');
+            } catch (err) {
+                showToast(err.message || 'Помилка', 'error');
+            } finally {
+                document.getElementById('db-loading').classList.add('hidden');
+            }
+        }
+        window.toggleBotUserBlock = toggleBotUserBlock;
 
         async function renderBotVisitors() {
             const panel = document.getElementById('admin-bot-visitors-panel');
@@ -1415,7 +1480,8 @@
                 
                 let linksHTML = '<div class="flex items-center gap-2">';
                 if (l.phone && l.phone.trim() !== '') {
-                    linksHTML += `<a href="tel:${l.phone}" class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30 btn-push text-[16px]"><i class="fa-solid fa-phone"></i></a>`;
+                    const phoneHref = normalizePhoneHref(l.phone);
+                    linksHTML += `<a href="tel:${escapeAttr(phoneHref)}" target="_self" rel="external" class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30 btn-push text-[16px]"><i class="fa-solid fa-phone"></i></a>`;
                 }
                 if (l.tg && l.tg.trim() !== '') {
                     linksHTML += `<a href="https://t.me/${l.tg.replace('@','')}" target="_blank" class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-500/30 btn-push text-[16px]"><i class="fa-solid fa-paper-plane"></i></a>`;
@@ -1703,6 +1769,8 @@
                 }
             }
 
+            if (await enforceBlockedUser()) return;
+
             const savedAdmin = localStorage.getItem('pnu_admin_session_v11');
             if (savedAdmin) {
                 try {
@@ -1725,6 +1793,7 @@
             document.getElementById('welcome-skip-btn').addEventListener('click', closeWelcomeInstruction);
             document.getElementById('welcome-start-btn').addEventListener('click', closeWelcomeInstruction);
             document.getElementById('re-open-onboarding-btn').addEventListener('click', () => openWelcomeInstruction(true));
+            document.getElementById('app-refresh-btn').addEventListener('click', refreshAppData);
             document.getElementById('admin-refresh-visitors-btn')?.addEventListener('click', () => renderBotVisitors());
             document.getElementById('admin-bot-push-toggle')?.addEventListener('change', async (e) => {
                 if (!isAdmin() || !currentAdminPassword) {
