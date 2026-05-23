@@ -658,7 +658,7 @@
 
         const tabIconsMap = { 'tab-budget': 'fa-wallet', 'tab-events': 'fa-bullhorn', 'tab-duty': 'fa-circle-info', 'tab-complaints': 'fa-screwdriver-wrench', 'tab-leaders': 'fa-address-book', 'tab-info': 'fa-circle-info' };
         let currentAdminPassword = localStorage.getItem('pnu_admin_session_v11') || null;
-        let selectedFloor = "3";
+        let selectedFloor = "1";
         let visiblePaymentsCount = 4;
         let visibleExpensesCount = 4;
         let currentWelcomeStep = 0;
@@ -1786,6 +1786,7 @@
                     }
                     const activeLabel = btn.querySelector('span');
                     if (activeLabel) { activeLabel.className = 'text-[10px] font-black text-slate-900 dark:text-white mt-1.5 tracking-wide'; }
+                    if (tabId === 'tab-duty') renderDuty();
                 });
             });
 
