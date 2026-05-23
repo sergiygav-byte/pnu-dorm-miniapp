@@ -570,6 +570,7 @@
                     <div class="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden relative">
                         <div id="db-stats-bar" class="absolute bottom-0 left-0 right-0 bg-emerald-500 transition-all duration-500" style="height: 0%"></div>
                     </div>
+                    <div id="db-connection-dot" class="absolute top-0 right-0 w-2 h-2 rounded-full bg-emerald-500 border border-white dark:border-slate-800"></div>
                     <div id="db-stats-tooltip" class="hidden absolute bottom-full right-0 mb-2 w-48 bg-slate-900/95 dark:bg-slate-800/95 text-white text-[11px] p-3 rounded-xl shadow-xl z-50 backdrop-blur-md border border-slate-700">
                         <div class="font-bold mb-1">📊 Завантаженість БД</div>
                         <div class="space-y-1">
@@ -577,6 +578,7 @@
                             <div class="flex justify-between"><span>Файли:</span><span id="db-stats-files">0</span></div>
                             <div class="flex justify-between"><span>БД:</span><span id="db-stats-db-percent">0%</span></div>
                             <div class="flex justify-between"><span>Storage:</span><span id="db-stats-storage-percent">0%</span></div>
+                            <div class="flex justify-between pt-1 border-t border-slate-700 mt-1"><span>Зв'язок:</span><span id="db-connection-status" class="text-emerald-400">✓ OK</span></div>
                         </div>
                     </div>
                 </div>
@@ -1787,6 +1789,9 @@
 
         async function loadDBStats() {
             if (!isAdmin()) return;
+            const connectionDot = document.getElementById('db-connection-dot');
+            const connectionStatus = document.getElementById('db-connection-status');
+            
             try {
                 const stats = await DormDatabase.getDBStats();
                 if (stats) {
@@ -1807,9 +1812,22 @@
                             bar.className = 'absolute bottom-0 left-0 right-0 bg-emerald-500 transition-all duration-500';
                         }
                     }
+
+                    // Зв'язок OK
+                    if (connectionDot) connectionDot.className = 'absolute top-0 right-0 w-2 h-2 rounded-full bg-emerald-500 border border-white dark:border-slate-800';
+                    if (connectionStatus) {
+                        connectionStatus.textContent = '✓ OK';
+                        connectionStatus.className = 'text-emerald-400';
+                    }
                 }
             } catch (e) {
                 console.error('Failed to load DB stats:', e);
+                // Зв'язок помилка
+                if (connectionDot) connectionDot.className = 'absolute top-0 right-0 w-2 h-2 rounded-full bg-rose-500 border border-white dark:border-slate-800';
+                if (connectionStatus) {
+                    connectionStatus.textContent = '✗ Помилка';
+                    connectionStatus.className = 'text-rose-400';
+                }
             }
         }
 
