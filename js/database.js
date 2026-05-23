@@ -94,6 +94,13 @@
         return !!data;
     }
 
+    async function getDBStats() {
+        const sb = getClient();
+        const { data, error } = await sb.rpc('get_db_stats');
+        if (error) throw error;
+        return data;
+    }
+
     async function uploadPhotosFromInput(fileInput) {
         if (!fileInput || !fileInput.files || fileInput.files.length === 0) return [];
         const sb = getClient();
@@ -232,6 +239,7 @@
         loadDB,
         getDB,
         verifyAdmin,
+        getDBStats,
         uploadPhotosFromInput,
         deleteRow,
         insertComplaint,
