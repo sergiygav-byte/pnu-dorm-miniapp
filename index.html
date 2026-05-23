@@ -566,22 +566,6 @@
                 <button id="adminAuthBtn" class="w-10 h-10 rounded-2xl bg-white/80 dark:bg-slate-800/80 flex items-center justify-center border border-white/80 dark:border-slate-600/50 shadow-sm text-slate-700 dark:text-slate-300 btn-push hover:bg-white transition-colors">
                     <i id="adminIcon" class="fa-solid fa-lock text-[14px]"></i>
                 </button>
-                <div id="db-stats-indicator" class="hidden w-8 h-8 rounded-xl bg-white/80 dark:bg-slate-800/80 flex items-center justify-center border border-white/80 dark:border-slate-600/50 shadow-sm cursor-pointer relative z-20" title="Завантаженість БД">
-                    <div class="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden relative">
-                        <div id="db-stats-bar" class="absolute bottom-0 left-0 right-0 bg-emerald-500 transition-all duration-500" style="height: 0%"></div>
-                    </div>
-                    <div id="db-connection-dot" class="absolute top-0 right-0 w-2 h-2 rounded-full bg-emerald-500 border border-white dark:border-slate-800"></div>
-                    <div id="db-stats-tooltip" class="hidden absolute bottom-full right-0 mb-2 w-48 bg-slate-900/95 dark:bg-slate-800/95 text-white text-[11px] p-3 rounded-xl shadow-xl z-50 backdrop-blur-md border border-slate-700">
-                        <div class="font-bold mb-1">📊 Завантаженість БД</div>
-                        <div class="space-y-1">
-                            <div class="flex justify-between"><span>Записи:</span><span id="db-stats-records">0</span></div>
-                            <div class="flex justify-between"><span>Файли:</span><span id="db-stats-files">0</span></div>
-                            <div class="flex justify-between"><span>БД:</span><span id="db-stats-db-percent">0%</span></div>
-                            <div class="flex justify-between"><span>Storage:</span><span id="db-stats-storage-percent">0%</span></div>
-                            <div class="flex justify-between pt-1 border-t border-slate-700 mt-1"><span>Зв'язок:</span><span id="db-connection-status" class="text-emerald-400">✓ OK</span></div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </header>
 
@@ -1773,82 +1757,15 @@
                 }
             });
             const icon = document.getElementById('adminIcon');
-            const dbStatsIndicator = document.getElementById('db-stats-indicator');
             if (isAdmin()) {
                 icon.className = 'fa-solid fa-unlock text-emerald-500 text-[14px] drop-shadow-sm';
                 renderBotVisitors();
-                if (dbStatsIndicator) dbStatsIndicator.classList.remove('hidden');
-                loadDBStats();
             } else {
                 icon.className = 'fa-solid fa-lock text-[14px]';
                 const panel = document.getElementById('admin-bot-visitors-panel');
                 if (panel) panel.classList.add('hidden');
-                if (dbStatsIndicator) dbStatsIndicator.classList.add('hidden');
             }
         }
-
-        async function loadDBStats() {
-            if (!isAdmin()) return;
-            const connectionDot = document.getElementById('db-connection-dot');
-            const connectionStatus = document.getElementById('db-connection-status');
-            
-            try {
-                const stats = await DormDatabase.getDBStats();
-                if (stats) {
-                    document.getElementById('db-stats-records').textContent = stats.total_records || 0;
-                    document.getElementById('db-stats-files').textContent = stats.storage_files || 0;
-                    document.getElementById('db-stats-db-percent').textContent = (stats.db_usage_percent || 0) + '%';
-                    document.getElementById('db-stats-storage-percent').textContent = (stats.storage_usage_percent || 0) + '%';
-
-                    const maxPercent = Math.max(stats.db_usage_percent || 0, stats.storage_usage_percent || 0);
-                    const bar = document.getElementById('db-stats-bar');
-                    if (bar) {
-                        bar.style.height = maxPercent + '%';
-                        if (maxPercent > 80) {
-                            bar.className = 'absolute bottom-0 left-0 right-0 bg-rose-500 transition-all duration-500';
-                        } else if (maxPercent > 50) {
-                            bar.className = 'absolute bottom-0 left-0 right-0 bg-amber-500 transition-all duration-500';
-                        } else {
-                            bar.className = 'absolute bottom-0 left-0 right-0 bg-emerald-500 transition-all duration-500';
-                        }
-                    }
-
-                    // Зв'язок OK
-                    if (connectionDot) connectionDot.className = 'absolute top-0 right-0 w-2 h-2 rounded-full bg-emerald-500 border border-white dark:border-slate-800';
-                    if (connectionStatus) {
-                        connectionStatus.textContent = '✓ OK';
-                        connectionStatus.className = 'text-emerald-400';
-                    }
-                }
-            } catch (e) {
-                console.error('Failed to load DB stats:', e);
-                // Зв'язок помилка
-                if (connectionDot) connectionDot.className = 'absolute top-0 right-0 w-2 h-2 rounded-full bg-rose-500 border border-white dark:border-slate-800';
-                if (connectionStatus) {
-                    connectionStatus.textContent = '✗ Помилка';
-                    connectionStatus.className = 'text-rose-400';
-                }
-            }
-        }
-
-        // Обробник натискання на індикатор статистики
-        document.addEventListener('DOMContentLoaded', () => {
-            const indicator = document.getElementById('db-stats-indicator');
-            const tooltip = document.getElementById('db-stats-tooltip');
-            if (indicator && tooltip) {
-                indicator.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    tooltip.classList.toggle('hidden');
-                });
-
-                // Закрити при натисканні поза tooltip
-                document.addEventListener('click', (e) => {
-                    if (!indicator.contains(e.target) && !tooltip.contains(e.target)) {
-                        tooltip.classList.add('hidden');
-                    }
-                });
-            }
-        });
 
         function renderWelcomeStep() {
             const step = onboardingSteps[currentWelcomeStep];
