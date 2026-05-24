@@ -15,7 +15,7 @@
         <script src="https://telegram.org/js/telegram-web-app.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
         <script src="config.public.js"></script>
-        <script src="database.js?v=20260525a"></script>
+        <script src="database.js?v=20260526a"></script>
         <script src="https://cdn.tailwindcss.com"></script>
 
         <link
@@ -592,20 +592,61 @@
             }
 
             html.tg-android .cascade-item {
-                animation-duration: 0.16s;
+                animation-duration: 0.14s;
+                /* Disable spring-based animation on Android — simpler is faster */
+                animation-timing-function: ease-out;
             }
 
             html.tg-android .btn-push {
                 transition:
-                    transform 0.18s ease,
-                    opacity 0.18s ease,
-                    background 0.18s ease,
-                    color 0.18s ease;
+                    transform 0.14s ease,
+                    opacity 0.14s ease;
             }
 
             html.tg-android .btn-push:hover,
             html.tg-android .diia-glass-card:hover {
                 transform: none;
+            }
+
+            /* Android: disable heavy shimmer on glass cards */
+            html.tg-android .diia-glass-card::before {
+                animation: none;
+                display: none;
+            }
+
+            /* Android: simplify nav bar glass */
+            html.tg-android .nav-glass-bar {
+                background: rgba(255, 255, 255, 0.88);
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+            }
+            html.tg-android.dark .nav-glass-bar {
+                background: rgba(15, 23, 42, 0.95);
+            }
+
+            /* Android: no shimmer on nav active tab */
+            html.tg-android .nav-glass-active::before {
+                display: none;
+            }
+
+            /* Android: reduce gradient orb blur intensity */
+            html.tg-android .bg-diia-light::before,
+            html.tg-android .bg-diia-light::after {
+                opacity: 0.15;
+                filter: blur(40px);
+                animation-duration: 40s;
+            }
+
+            /* Android: solid background for glass containers (no blur) */
+            html.tg-android .p-5.bg-white\/60,
+            html.tg-android .p-4.bg-white\/60 {
+                background: rgba(255, 255, 255, 0.9) !important;
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+            }
+            html.tg-android.dark .p-5.bg-white\/60,
+            html.tg-android.dark .p-4.bg-white\/60 {
+                background: rgba(15, 23, 42, 0.95) !important;
             }
 
             /* iOS 26 Style Animations */
@@ -1509,7 +1550,7 @@
 
         <div
             id="db-loading"
-            class="fixed inset-0 z-[110] bg-slate-950/50 backdrop-blur-sm flex flex-col items-center justify-center gap-3"
+            class="fixed inset-0 z-[110] bg-slate-950/70 flex flex-col items-center justify-center gap-3"
         >
             <div
                 class="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin"
@@ -2379,6 +2420,29 @@
                                 id="admin-bot-push-toggle"
                                 class="w-5 h-5 accent-amber-600 shrink-0"
                                 checked
+                            />
+                        </label>
+                        <!-- Push test mode: send only to admin's own TG account -->
+                        <label
+                            class="flex items-center justify-between gap-3 p-3 rounded-xl bg-violet-500/10 border border-violet-400/30 cursor-pointer"
+                        >
+                            <div>
+                                <p
+                                    class="text-[12px] font-black text-violet-900 dark:text-violet-200"
+                                >
+                                    🧪 Тест-режим push
+                                </p>
+                                <p
+                                    id="admin-push-test-hint"
+                                    class="text-[11px] text-slate-500 mt-0.5"
+                                >
+                                    Вимкнено — push йде всім користувачам
+                                </p>
+                            </div>
+                            <input
+                                type="checkbox"
+                                id="admin-push-test-toggle"
+                                class="w-5 h-5 accent-violet-600 shrink-0"
                             />
                         </label>
                         <div
@@ -5581,6 +5645,45 @@
                     }
                 }
 
+                // ===== FIX: Android icon repaint after loading overlay =====
+                // On Android Telegram WebView, hiding a fixed overlay causes
+                // FontAwesome glyph cache to clear on GPU layer flush.
+                // We force a repaint of the header icons after every hide.
+                (function setupAndroidRepaintFix() {
+                    const loadingEl = document.getElementById("db-loading");
+                    if (!loadingEl) return;
+                    const header = document.querySelector("header");
+                    if (!header) return;
+                    let lastHidden = loadingEl.classList.contains("hidden");
+                    const repaintHeader = () => {
+                        // Trigger a GPU compositing refresh on the header
+                        header.style.transform = "translateZ(0.0001px)";
+                        requestAnimationFrame(() => {
+                            header.style.transform = "";
+                            // Force icon text nodes to re-render
+                            header
+                                .querySelectorAll("i[class]")
+                                .forEach((el) => {
+                                    el.style.visibility = "hidden";
+                                    void el.offsetWidth; // layout flush
+                                    el.style.visibility = "";
+                                });
+                        });
+                    };
+                    new MutationObserver(() => {
+                        const isNowHidden =
+                            loadingEl.classList.contains("hidden");
+                        if (!lastHidden && isNowHidden) {
+                            // Overlay just became hidden — repair icons
+                            repaintHeader();
+                        }
+                        lastHidden = isNowHidden;
+                    }).observe(loadingEl, {
+                        attributes: true,
+                        attributeFilter: ["class"],
+                    });
+                })();
+
                 if (
                     localStorage.getItem("theme") === "dark" ||
                     (!localStorage.getItem("theme") &&
@@ -5720,6 +5823,41 @@
                         } catch (err) {
                             e.target.checked = !enabled;
                             showToast(err.message || "Помилка", "error");
+                        }
+                    });
+
+                // Push test-mode toggle — send only to admin's own TG account
+                document
+                    .getElementById("admin-push-test-toggle")
+                    ?.addEventListener("change", (e) => {
+                        if (!isAdmin()) {
+                            e.target.checked = false;
+                            return;
+                        }
+                        const testOn = e.target.checked;
+                        const tg = getTelegramUser();
+                        const hint = document.getElementById(
+                            "admin-push-test-hint",
+                        );
+                        if (testOn) {
+                            if (!tg) {
+                                showToast(
+                                    "Відкрийте додаток у Telegram, щоб використати тест-режим",
+                                    "error",
+                                );
+                                e.target.checked = false;
+                                return;
+                            }
+                            DormDatabase.setPushTestMode(tg.id);
+                            if (hint)
+                                hint.textContent = `Увімкнено — push тільки вам (@${tg.username || tg.id})`;
+                            showToast(`🧪 Тест-режим ON — push тільки вам`);
+                        } else {
+                            DormDatabase.setPushTestMode(null);
+                            if (hint)
+                                hint.textContent =
+                                    "Вимкнено — push йде всім користувачам";
+                            showToast("🧪 Тест-режим OFF — push йде всім");
                         }
                     });
                 document
