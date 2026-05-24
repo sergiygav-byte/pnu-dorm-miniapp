@@ -53,6 +53,46 @@
             /* Базовий колір під градієнтом для плавності */
             background-color: #f8fafc;
         }
+
+        /* ===== GPU Performance Optimizations for Telegram Mini App ===== */
+        .tab-btn, .btn-push, .cascade-item, .animate-modal, .nav-glass-active, .nav-glass-inactive {
+            will-change: transform, opacity;
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+        }
+        .cascade-item {
+            contain: layout style paint;
+        }
+        /* Reduce paint on animated elements */
+        .diia-glass-card, .app-tab {
+            contain: layout style;
+        }
+        /* Ensure smooth scrolling */
+        main {
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+        }
+        /* Optimize backdrop-filter for Android */
+        html.tg-android .diia-glass-card,
+        html.tg-android .nav-glass-bar,
+        html.tg-android .nav-glass-active,
+        html.tg-android .nav-glass-inactive {
+            will-change: auto;
+            contain: layout style;
+        }
+        /* Disable heavy animations on low-end devices */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+        /* iOS Safari smooth fix — prevent rubber-band jank */
+        @supports (-webkit-touch-callout: none) {
+            body { overflow: hidden; height: 100vh; }
+            main { overflow-y: auto; -webkit-overflow-scrolling: touch; height: calc(100vh - 76px); }
+        }
         
                         /* Живий багатошаровий градієнт для світлої теми — динамічна версія */
         .bg-diia-light {
@@ -275,8 +315,8 @@
         /* Червоний бейдж (індикатор нових даних) */
         .tab-new-badge {
             position: absolute;
-            top: 6px;
-            right: 6px;
+            top: 4px;
+            right: 4px;
             width: 9px;
             height: 9px;
             background: #ef4444;
@@ -285,6 +325,7 @@
             box-shadow: 0 0 6px #ef4444, 0 0 12px rgba(239,68,68,0.5);
             animation: badge-pulse 1.8s ease-in-out infinite;
             pointer-events: none;
+            z-index: 5;
         }
         .dark .tab-new-badge {
             border-color: #1e293b;
@@ -376,13 +417,333 @@
 
         /* Tab button active state animation */
         .tab-btn {
-            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         .tab-btn.active {
             transform: scale(1.05);
         }
         .tab-btn:active {
-            transform: scale(0.95);
+            transform: scale(0.93);
+        }
+
+        /* ===== iOS 26 Glass Navigation Bar ===== */
+        .nav-glass-bar {
+            background: rgba(255, 255, 255, 0.45);
+            backdrop-filter: blur(40px) saturate(180%);
+            -webkit-backdrop-filter: blur(40px) saturate(180%);
+            border-top: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.04), 0 -2px 12px rgba(0, 0, 0, 0.02);
+        }
+        .dark .nav-glass-bar {
+            background: rgba(15, 23, 42, 0.6);
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.3), 0 -2px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Active tab — glass pill with dynamic gradient tint */
+        .nav-glass-active {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(20px) saturate(150%);
+            -webkit-backdrop-filter: blur(20px) saturate(150%);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            overflow: hidden;
+        }
+        .dark .nav-glass-active {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), 0 1px 4px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        /* Active tab animated gradient overlay */
+        .nav-glass-active .nav-gradient-bg {
+            position: absolute;
+            inset: 0;
+            border-radius: 18px;
+            opacity: 0.15;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .dark .nav-glass-active .nav-gradient-bg {
+            opacity: 0.25;
+        }
+        .nav-gradient-emerald { background: linear-gradient(135deg, #10b981, #059669, #34d399, #10b981); background-size: 300% 300%; animation: navGradFlow 4s ease-in-out infinite; }
+        .nav-gradient-amber   { background: linear-gradient(135deg, #f59e0b, #d97706, #fbbf24, #f59e0b); background-size: 300% 300%; animation: navGradFlow 4s ease-in-out infinite 0.5s; }
+        .nav-gradient-teal    { background: linear-gradient(135deg, #14b8a6, #0d9488, #2dd4bf, #14b8a6); background-size: 300% 300%; animation: navGradFlow 4s ease-in-out infinite 1s; }
+        .nav-gradient-rose    { background: linear-gradient(135deg, #f43f5e, #e11d48, #fb7185, #f43f5e); background-size: 300% 300%; animation: navGradFlow 4s ease-in-out infinite 1.5s; }
+        .nav-gradient-blue    { background: linear-gradient(135deg, #3b82f6, #2563eb, #60a5fa, #3b82f6); background-size: 300% 300%; animation: navGradFlow 4s ease-in-out infinite 2s; }
+        .nav-gradient-violet  { background: linear-gradient(135deg, #8b5cf6, #7c3aed, #a78bfa, #8b5cf6); background-size: 300% 300%; animation: navGradFlow 4s ease-in-out infinite 2.5s; }
+        @keyframes navGradFlow {
+            0%   { background-position: 0% 50%; }
+            50%  { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Inactive tab — subtle glass */
+        .nav-glass-inactive {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+        }
+        .dark .nav-glass-inactive {
+            background: rgba(30, 41, 59, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            box-shadow: none;
+        }
+
+        /* Gradient icon text — animated gradient fill on active icons */
+        .nav-icon-colored {
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            z-index: 1;
+        }
+        .nav-glass-active .nav-icon-grad {
+            background-size: 200% 200%;
+            animation: iconGradPulse 3s ease-in-out infinite;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        @keyframes iconGradPulse {
+            0%   { background-position: 0% 50%; }
+            50%  { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        /* Per-tab gradient icons */
+        .icon-grad-emerald { background-image: linear-gradient(135deg, #10b981, #34d399, #059669, #10b981); background-size: 300% 300%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 2px 6px rgba(16, 185, 129, 0.4)); }
+        .icon-grad-amber   { background-image: linear-gradient(135deg, #f59e0b, #fbbf24, #d97706, #f59e0b); background-size: 300% 300%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 2px 6px rgba(245, 158, 11, 0.4)); }
+        .icon-grad-teal    { background-image: linear-gradient(135deg, #14b8a6, #2dd4bf, #0d9488, #14b8a6); background-size: 300% 300%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 2px 6px rgba(20, 184, 166, 0.4)); }
+        .icon-grad-rose    { background-image: linear-gradient(135deg, #f43f5e, #fb7185, #e11d48, #f43f5e); background-size: 300% 300%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 2px 6px rgba(244, 63, 94, 0.4)); }
+        .icon-grad-blue    { background-image: linear-gradient(135deg, #3b82f6, #60a5fa, #2563eb, #3b82f6); background-size: 300% 300%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 2px 6px rgba(59, 130, 246, 0.4)); }
+        .icon-grad-violet  { background-image: linear-gradient(135deg, #8b5cf6, #a78bfa, #7c3aed, #8b5cf6); background-size: 300% 300%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 2px 6px rgba(139, 92, 246, 0.4)); }
+
+        /* SVG gradient fill for duty tab */
+        .nav-glass-active .svg-grad-teal { fill: url(#svgGradTeal); filter: drop-shadow(0 2px 6px rgba(20, 184, 166, 0.4)); }
+
+        /* iOS 26 Glass tab switch animation — GPU-only for smoothness */
+        @keyframes navGlassActivate {
+            0%   { transform: scale(0.92); opacity: 0.7; }
+            50%  { transform: scale(1.06); }
+            100% { transform: scale(1);   opacity: 1; }
+        }
+        @keyframes navGlassDeactivate {
+            0%   { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        .nav-glass-anim-in {
+            animation: navGlassActivate 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        .nav-glass-anim-out {
+            animation: navGlassDeactivate 0.2s ease forwards;
+        }
+
+        /* Inactive icon muted */
+        .nav-glass-inactive .nav-icon-colored {
+            opacity: 0.45;
+            filter: none;
+        }
+
+        /* iOS 26 floating glass orb behind active tab */
+        .nav-glass-active::after {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: 20px;
+            background: radial-gradient(circle at 50% 80%, rgba(255,255,255,0.4), transparent 70%);
+            pointer-events: none;
+            z-index: -1;
+        }
+        .dark .nav-glass-active::after {
+            background: radial-gradient(circle at 50% 80%, rgba(59, 130, 246, 0.08), transparent 70%);
+        }
+
+        /* iOS 26 shimmer on active tab */
+        .nav-glass-active::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 60%; height: 100%;
+            background: linear-gradient(to right, transparent, rgba(255,255,255,0.35), transparent);
+            transform: skewX(-25deg);
+            animation: navShimmer 4s ease-in-out infinite;
+            pointer-events: none;
+            border-radius: 18px;
+        }
+        .dark .nav-glass-active::before {
+            background: linear-gradient(to right, transparent, rgba(255,255,255,0.06), transparent);
+        }
+        @keyframes navShimmer {
+            0%   { left: -100%; }
+            25%  { left: 160%; }
+            100% { left: 160%; }
+        }
+
+        /* Android adjustments */
+        html.tg-android .nav-glass-bar {
+            backdrop-filter: blur(20px) saturate(140%);
+            -webkit-backdrop-filter: blur(20px) saturate(140%);
+        }
+        html.tg-android .nav-glass-active {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        html.tg-android .nav-glass-active::before {
+            animation-duration: 8s;
+        }
+
+        /* ===== FAQ Accordion ===== */
+        .faq-item .faq-answer {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            transition: max-height 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+                        opacity 0.3s ease,
+                        padding 0.3s ease;
+        }
+        .faq-item.faq-open .faq-answer {
+            max-height: 200px;
+            opacity: 1;
+            padding-top: 0;
+            padding-bottom: 14px;
+        }
+        .faq-item .faq-chevron {
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .faq-item.faq-open .faq-chevron {
+            transform: rotate(180deg);
+        }
+        .faq-toggle {
+            transition: background 0.2s ease;
+        }
+        .faq-toggle:active {
+            background: rgba(139, 92, 246, 0.05);
+        }
+
+        /* ===== Onboarding Visual Styles ===== */
+        .onboard-visual {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 4px;
+        }
+        .onboard-phone-mockup {
+            width: 200px;
+            background: linear-gradient(145deg, #e2e8f0, #f1f5f9);
+            border-radius: 20px;
+            padding: 6px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.8);
+            position: relative;
+        }
+        .dark .onboard-phone-mockup {
+            background: linear-gradient(145deg, #1e293b, #334155);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+        .onboard-screen {
+            background: rgba(255,255,255,0.9);
+            border-radius: 14px;
+            padding: 8px;
+            min-height: 100px;
+        }
+        .dark .onboard-screen {
+            background: rgba(15,23,42,0.9);
+        }
+        .onboard-header-bar {
+            font-size: 9px;
+            font-weight: 900;
+            text-align: center;
+            padding: 4px 0;
+            color: #475569;
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .dark .onboard-header-bar {
+            color: #94a3b8;
+            border-bottom-color: rgba(255,255,255,0.06);
+        }
+        .onboard-nav-row {
+            display: flex;
+            gap: 3px;
+            margin-bottom: 3px;
+        }
+        .onboard-nav-pill {
+            flex: 1;
+            font-size: 7px;
+            font-weight: 700;
+            text-align: center;
+            padding: 4px 2px;
+            border-radius: 8px;
+            background: rgba(241,245,249,0.8);
+            color: #64748b;
+            border: 1px solid rgba(0,0,0,0.04);
+        }
+        .dark .onboard-nav-pill {
+            background: rgba(30,41,59,0.8);
+            color: #94a3b8;
+            border-color: rgba(255,255,255,0.04);
+        }
+        .onboard-pill-active {
+            background: rgba(16,185,129,0.15);
+            color: #059669;
+            border-color: rgba(16,185,129,0.3);
+            box-shadow: 0 0 8px rgba(16,185,129,0.2);
+        }
+        .dark .onboard-pill-active {
+            background: rgba(16,185,129,0.2);
+            color: #34d399;
+            border-color: rgba(16,185,129,0.3);
+        }
+        .onboard-highlight-box {
+            position: relative;
+            border-radius: 10px;
+            padding: 8px;
+            border: 2px solid;
+        }
+        .onboard-highlight-green { border-color: rgba(16,185,129,0.5); background: rgba(16,185,129,0.08); }
+        .onboard-highlight-rose  { border-color: rgba(244,63,94,0.5);  background: rgba(244,63,94,0.08); }
+        .onboard-highlight-teal  { border-color: rgba(20,184,166,0.5); background: rgba(20,184,166,0.08); }
+        .onboard-highlight-blue  { border-color: rgba(59,130,246,0.5); background: rgba(59,130,246,0.08); }
+        .onboard-highlight-violet { border-color: rgba(139,92,246,0.5); background: rgba(139,92,246,0.08); }
+        .onboard-highlight-amber  { border-color: rgba(245,158,11,0.5); background: rgba(245,158,11,0.08); }
+        .onboard-mini-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+        .onboard-mini-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 9px;
+        }
+        .onboard-amount { font-size: 13px; font-weight: 900; color: #059669; }
+        .dark .onboard-amount { color: #34d399; }
+        .onboard-label { font-size: 8px; font-weight: 700; color: #475569; }
+        .dark .onboard-label { color: #94a3b8; }
+        .onboard-icon { font-size: 14px; }
+        /* Pulsing ring animation for highlighted areas */
+        .onboard-pulse-ring {
+            position: absolute;
+            inset: -4px;
+            border-radius: 12px;
+            border: 2px solid;
+            pointer-events: none;
+            animation: onboardPulse 1.5s ease-in-out infinite;
+        }
+        .onboard-highlight-green .onboard-pulse-ring  { border-color: rgba(16,185,129,0.4); }
+        .onboard-highlight-rose .onboard-pulse-ring   { border-color: rgba(244,63,94,0.4); }
+        .onboard-highlight-teal .onboard-pulse-ring   { border-color: rgba(20,184,166,0.4); }
+        .onboard-highlight-blue .onboard-pulse-ring   { border-color: rgba(59,130,246,0.4); }
+        .onboard-highlight-violet .onboard-pulse-ring { border-color: rgba(139,92,246,0.4); }
+        .onboard-highlight-amber .onboard-pulse-ring  { border-color: rgba(245,158,11,0.4); }
+        @keyframes onboardPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.3; transform: scale(1.04); }
         }
 
         /* List item stagger animation with spring */
@@ -582,8 +943,7 @@
                         <i class="fa-solid fa-circle-info"></i>
                     </div>
                     <h3 id="welcome-instruction-title" class="text-[18px] font-black tracking-tight text-slate-900 dark:text-white pt-1"></h3>
-                    <div class="inline-block px-3 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold rounded-full text-[12px] shadow-sm" id="welcome-step-indicator">
-                        Крок 1 з 3
+                    <div id="welcome-step-dots" class="flex items-center justify-center gap-2">
                     </div>
                 </div>
                 
@@ -885,6 +1245,62 @@
                     </div>
                 </section>
                 
+                <!-- FAQ Section -->
+                <div class="p-5 bg-white/60 dark:bg-slate-900/60 rounded-[28px] border border-white/60 dark:border-slate-700/50 shadow-md backdrop-blur-xl">
+                    <div class="text-[15px] font-black uppercase tracking-wide pb-3 border-b border-slate-200/60 dark:border-slate-700/50 text-slate-800 dark:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-circle-question text-violet-500"></i> Часті питання
+                    </div>
+                    <div id="faq-list" class="space-y-2 mt-4">
+                        <div class="faq-item rounded-2xl overflow-hidden border border-white/60 dark:border-slate-700/50 bg-white/30 dark:bg-slate-800/30">
+                            <button type="button" class="faq-toggle w-full flex items-center justify-between p-3.5 text-left" onclick="this.parentElement.classList.toggle('faq-open')">
+                                <span class="text-[13px] font-bold text-slate-700 dark:text-slate-200 pr-2">Як дізнатися свій баланс фонду?</span>
+                                <i class="fa-solid fa-chevron-down text-[11px] text-slate-400 transition-transform faq-chevron"></i>
+                            </button>
+                            <div class="faq-answer px-3.5 pb-3.5 text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed font-medium">Відкрийте вкладку <b>Бюджет</b> — там відображається загальний баланс, усі внески та витрати фонду гуртожитку. Кожен внесок і витрат підтверджено фотодокументами.</div>
+                        </div>
+                        <div class="faq-item rounded-2xl overflow-hidden border border-white/60 dark:border-slate-700/50 bg-white/30 dark:bg-slate-800/30">
+                            <button type="button" class="faq-toggle w-full flex items-center justify-between p-3.5 text-left" onclick="this.parentElement.classList.toggle('faq-open')">
+                                <span class="text-[13px] font-bold text-slate-700 dark:text-slate-200 pr-2">Як подати скаргу або звернення?</span>
+                                <i class="fa-solid fa-chevron-down text-[11px] text-slate-400 transition-transform faq-chevron"></i>
+                            </button>
+                            <div class="faq-answer px-3.5 pb-3.5 text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed font-medium">Перейдіть у вкладку <b>Скарги</b>, заповніть тему та опис проблеми, за бажанням додайте фото. Адміністрація розгляне ваше звернення та залишить відповідь.</div>
+                        </div>
+                        <div class="faq-item rounded-2xl overflow-hidden border border-white/60 dark:border-slate-700/50 bg-white/30 dark:bg-slate-800/30">
+                            <button type="button" class="faq-toggle w-full flex items-center justify-between p-3.5 text-left" onclick="this.parentElement.classList.toggle('faq-open')">
+                                <span class="text-[13px] font-bold text-slate-700 dark:text-slate-200 pr-2">Коли моє чергування з санітарки?</span>
+                                <i class="fa-solid fa-chevron-down text-[11px] text-slate-400 transition-transform faq-chevron"></i>
+                            </button>
+                            <div class="faq-answer px-3.5 pb-3.5 text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed font-medium">У вкладці <b>Санітарка</b> оберіть свій поверх — там показано чергові та їхній статус. Також ви можете залишити коментар щодо чистоти на поверсі.</div>
+                        </div>
+                        <div class="faq-item rounded-2xl overflow-hidden border border-white/60 dark:border-slate-700/50 bg-white/30 dark:bg-slate-800/30">
+                            <button type="button" class="faq-toggle w-full flex items-center justify-between p-3.5 text-left" onclick="this.parentElement.classList.toggle('faq-open')">
+                                <span class="text-[13px] font-bold text-slate-700 dark:text-slate-200 pr-2">Як зв’язатися з адміністрацією гуртожитку?</span>
+                                <i class="fa-solid fa-chevron-down text-[11px] text-slate-400 transition-transform faq-chevron"></i>
+                            </button>
+                            <div class="faq-answer px-3.5 pb-3.5 text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed font-medium">Відкрийте вкладку <b>Контакти</b> — там є телефони та Telegram посилання завідувача, старости та заступників. Натисніть на іконку телефону, щоб побачити номер, або на Telegram — щоб написати.</div>
+                        </div>
+                        <div class="faq-item rounded-2xl overflow-hidden border border-white/60 dark:border-slate-700/50 bg-white/30 dark:bg-slate-800/30">
+                            <button type="button" class="faq-toggle w-full flex items-center justify-between p-3.5 text-left" onclick="this.parentElement.classList.toggle('faq-open')">
+                                <span class="text-[13px] font-bold text-slate-700 dark:text-slate-200 pr-2">Як взяти участь в опитуванні?</span>
+                                <i class="fa-solid fa-chevron-down text-[11px] text-slate-400 transition-transform faq-chevron"></i>
+                            </button>
+                            <div class="faq-answer px-3.5 pb-3.5 text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed font-medium">Активні опитування розташовані у вкладці <b>Події</b> зверху. Оберіть варіант і натисніть — ваш голос буде зараховано. Результати видно одразу після голосування.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Suggestions Section -->
+                <div class="p-5 bg-white/60 dark:bg-slate-900/60 rounded-[28px] border border-white/60 dark:border-slate-700/50 shadow-md backdrop-blur-xl">
+                    <div class="text-[15px] font-black uppercase tracking-wide pb-3 border-b border-slate-200/60 dark:border-slate-700/50 text-slate-800 dark:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-lightbulb text-amber-500"></i> Пропозиції до додатку
+                    </div>
+                    <p class="text-[12px] text-slate-500 dark:text-slate-400 mt-3 mb-3 font-medium">Маєте ідею як покращити цей додаток? Напишіть нам!</p>
+                    <form id="form-suggestion" class="space-y-3">
+                        <textarea id="suggestion-input" rows="3" placeholder="Ваша пропозиція або ідея для покращення додатку..." class="w-full px-4 py-3 text-[14px] font-medium bg-white/70 dark:bg-slate-800/60 border border-white/80 dark:border-slate-600/50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/40 text-slate-800 dark:text-slate-100 shadow-sm transition-all placeholder:text-slate-400 resize-none"></textarea>
+                        <button type="submit" class="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black rounded-2xl text-[14px] btn-push shadow-lg shadow-amber-500/30 uppercase tracking-wide flex items-center justify-center gap-2"><i class="fa-solid fa-paper-plane text-[13px]"></i> Надіслати пропозицію</button>
+                    </form>
+                </div>
+
                 <button id="re-open-onboarding-btn" class="w-full py-4 bg-white/70 dark:bg-slate-800/60 border border-white/80 dark:border-slate-600/50 rounded-2xl text-[14px] font-black text-slate-700 dark:text-slate-200 btn-push shadow-md backdrop-blur-md flex items-center justify-center gap-2 hover:bg-white transition-colors">
                     <i class="fa-solid fa-graduation-cap text-blue-500 text-lg"></i> Переглянути інструкцію знову
                 </button>
@@ -892,33 +1308,45 @@
 
         </main>
 
-        <nav class="fixed bottom-0 left-0 right-0 z-40 bg-white/60 dark:bg-slate-950/70 backdrop-blur-[30px] border-t border-white/40 dark:border-slate-800/50 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] dark:shadow-[0_-10px_40px_rgba(0,0,0,0.3)] pb-safe">
-            <div class="max-w-md mx-auto h-[72px] flex items-center justify-around px-2">
-                <button data-tab="tab-budget" class="tab-btn relative flex flex-col items-center justify-center w-[60px] h-[60px] rounded-[20px] bg-white/90 dark:bg-slate-800/90 shadow-md border border-white/50 dark:border-slate-600/50 btn-push">
-                    <i class="fa-solid fa-wallet text-[18px] text-emerald-500"></i>
-                    <span class="text-[10px] font-black text-slate-900 dark:text-white mt-1.5 tracking-wide">Бюджет</span>
+        <nav class="fixed bottom-0 left-0 right-0 z-40 nav-glass-bar pb-safe">
+            <svg width="0" height="0" style="position:absolute">
+                <defs>
+                    <linearGradient id="svgGradTeal" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#14b8a6"/>
+                        <stop offset="50%" stop-color="#2dd4bf"/>
+                        <stop offset="100%" stop-color="#0d9488"/>
+                        <animate attributeName="x1" values="0%;100%;0%" dur="3s" repeatCount="indefinite"/>
+                        <animate attributeName="y1" values="0%;100%;0%" dur="3s" repeatCount="indefinite"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+            <div class="max-w-md mx-auto h-[76px] flex items-center justify-around px-1.5">
+                <button data-tab="tab-budget" class="tab-btn relative flex flex-col items-center justify-center w-[58px] h-[58px] rounded-[18px] nav-glass-active btn-push">
+                    <div class="nav-gradient-bg nav-gradient-emerald"></div>
+                    <i class="fa-solid fa-wallet text-[19px] nav-icon-colored icon-grad-emerald"></i>
+                    <span class="text-[9px] font-black text-emerald-700 dark:text-emerald-300 mt-1 tracking-wide relative z-[1]">Бюджет</span>
                 </button>
-                <button data-tab="tab-events" class="tab-btn relative flex flex-col items-center justify-center w-[60px] h-[60px] rounded-[20px] btn-push hover:bg-white/40 dark:hover:bg-slate-800/40 transition-colors">
-                    <i class="fa-solid fa-bullhorn text-[18px] text-slate-400 dark:text-slate-500 transition-colors"></i>
-                    <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-1.5 tracking-wide">Події</span>
+                <button data-tab="tab-events" class="tab-btn relative flex flex-col items-center justify-center w-[58px] h-[58px] rounded-[18px] nav-glass-inactive btn-push">
+                    <i class="fa-solid fa-bullhorn text-[19px] nav-icon-colored text-amber-500"></i>
+                    <span class="text-[9px] font-bold text-slate-500 dark:text-slate-400 mt-1 tracking-wide">Події</span>
                 </button>
-                <button data-tab="tab-duty" class="tab-btn relative flex flex-col items-center justify-center w-[60px] h-[60px] rounded-[20px] btn-push hover:bg-white/40 dark:hover:bg-slate-800/40 transition-colors">
-                    <svg class="nav-svg-icon w-6 h-6 text-slate-400 dark:text-slate-500 fill-current transition-colors" viewBox="0 0 24 24">
+                <button data-tab="tab-duty" class="tab-btn relative flex flex-col items-center justify-center w-[58px] h-[58px] rounded-[18px] nav-glass-inactive btn-push">
+                    <svg class="nav-svg-icon nav-icon-colored w-[19px] h-[19px] text-teal-500 fill-current" viewBox="0 0 24 24">
                         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
                     </svg>
-                    <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-1.5 tracking-wide">Санітарка</span>
+                    <span class="text-[9px] font-bold text-slate-500 dark:text-slate-400 mt-1 tracking-wide">Санітарка</span>
                 </button>
-                <button data-tab="tab-complaints" class="tab-btn relative flex flex-col items-center justify-center w-[60px] h-[60px] rounded-[20px] btn-push hover:bg-white/40 dark:hover:bg-slate-800/40 transition-colors">
-                    <i class="fa-solid fa-screwdriver-wrench text-[18px] text-slate-400 dark:text-slate-500 transition-colors"></i>
-                    <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-1.5 tracking-wide">Скарги</span>
+                <button data-tab="tab-complaints" class="tab-btn relative flex flex-col items-center justify-center w-[58px] h-[58px] rounded-[18px] nav-glass-inactive btn-push">
+                    <i class="fa-solid fa-screwdriver-wrench text-[19px] nav-icon-colored text-rose-500"></i>
+                    <span class="text-[9px] font-bold text-slate-500 dark:text-slate-400 mt-1 tracking-wide">Скарги</span>
                 </button>
-                <button data-tab="tab-leaders" class="tab-btn relative flex flex-col items-center justify-center w-[60px] h-[60px] rounded-[20px] btn-push hover:bg-white/40 dark:hover:bg-slate-800/40 transition-colors">
-                    <i class="fa-solid fa-address-book text-[18px] text-slate-400 dark:text-slate-500 transition-colors"></i>
-                    <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-1.5 tracking-wide">Контакти</span>
+                <button data-tab="tab-leaders" class="tab-btn relative flex flex-col items-center justify-center w-[58px] h-[58px] rounded-[18px] nav-glass-inactive btn-push">
+                    <i class="fa-solid fa-address-book text-[19px] nav-icon-colored text-blue-500"></i>
+                    <span class="text-[9px] font-bold text-slate-500 dark:text-slate-400 mt-1 tracking-wide">Контакти</span>
                 </button>
-                <button data-tab="tab-info" class="tab-btn relative flex flex-col items-center justify-center w-[60px] h-[60px] rounded-[20px] btn-push hover:bg-white/40 dark:hover:bg-slate-800/40 transition-colors">
-                    <i class="fa-solid fa-circle-info text-[18px] text-slate-400 dark:text-slate-500 transition-colors"></i>
-                    <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-1.5 tracking-wide">Інфо</span>
+                <button data-tab="tab-info" class="tab-btn relative flex flex-col items-center justify-center w-[58px] h-[58px] rounded-[18px] nav-glass-inactive btn-push">
+                    <i class="fa-solid fa-circle-info text-[19px] nav-icon-colored text-violet-500"></i>
+                    <span class="text-[9px] font-bold text-slate-500 dark:text-slate-400 mt-1 tracking-wide">Інфо</span>
                 </button>
             </div>
         </nav>
@@ -964,6 +1392,21 @@
                 <div class="flex gap-2">
                     <button type="button" id="duty-sanitary-cancel" class="flex-1 py-2.5 bg-slate-200 dark:bg-slate-800 rounded-xl font-bold text-[13px] btn-push">Скасувати</button>
                     <button type="button" id="duty-sanitary-save" class="flex-1 py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl font-black text-[13px] btn-push">Зберегти</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-phone-popup" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md hidden flex items-center justify-center p-4">
+            <div class="w-full max-w-xs bg-white/95 dark:bg-slate-900/95 rounded-diia p-6 shadow-2xl space-y-5 border border-white/50 dark:border-slate-700 animate-modal backdrop-blur-lg">
+                <div class="text-center space-y-3">
+                    <div class="w-14 h-14 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto border border-emerald-500/20 shadow-inner">
+                        <i class="fa-solid fa-phone text-2xl text-emerald-500"></i>
+                    </div>
+                    <p id="phone-popup-number" class="text-[22px] font-black text-slate-800 dark:text-white tracking-wide"></p>
+                </div>
+                <div class="flex gap-2">
+                    <button type="button" id="phone-popup-copy" class="flex-1 py-3 text-[14px] font-black bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl btn-push shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2"><i class="fa-solid fa-copy"></i> Копіювати</button>
+                    <button type="button" id="phone-popup-close" class="flex-1 py-3 text-[14px] font-bold bg-slate-200/50 dark:bg-slate-800 rounded-xl btn-push border border-slate-300/50 dark:border-slate-700">Закрити</button>
                 </div>
             </div>
         </div>
@@ -1079,6 +1522,7 @@
         };
 
         const tabIconsMap = { 'tab-budget': 'fa-wallet', 'tab-events': 'fa-bullhorn', 'tab-duty': 'fa-circle-info', 'tab-complaints': 'fa-screwdriver-wrench', 'tab-leaders': 'fa-address-book', 'tab-info': 'fa-circle-info' };
+        const tabColorsMap = { 'tab-budget': 'emerald', 'tab-events': 'amber', 'tab-duty': 'teal', 'tab-complaints': 'rose', 'tab-leaders': 'blue', 'tab-info': 'violet' };
         let currentAdminPassword = localStorage.getItem('pnu_admin_session_v11') || null;
         let selectedFloor = "1";
         let visiblePaymentsCount = 4;
@@ -1088,9 +1532,26 @@
         let lastActiveTabId = 'tab-budget';
 
         const onboardingSteps = [
-            { title: "Вітаємо у додатку! 👋", icon: "fa-rocket", text: "✨ <b>Гуртожиток №1 ПНУ</b> тепер повністю у твоєму смартфоні!<br><br>Ця цифрова платформа створена для того, щоб зробити життя в нашому студентському домі максимально прозорим, організованим та комфортним для кожного." },
-            { title: "Прозорі фінанси та звернення 💸📊", icon: "fa-chart-pie", text: "📊 У розділі <b>Бюджет</b> ти завжди бачиш реальний баланс фонду, куди йдуть кошти та які цілі заплановано виконати.<br><br>Виникли якісь проблеми чи побутові труднощі? Подавай миттєву заявку у вкладці <b>Скарги</b>, додавай фото докази і адміністрація гуртожитку розгляне її найближчим часом!" },
-            { title: "Чергування та зв'язок 🧹📞", icon: "fa-users", text: "📅 Більше жодних паперових суперечок — графік санітарних чергувань по поверхах завжди під рукою.<br><br>Потрібен завідувач гуртожитку, староста чи заступники? Усі контакти з можливостю швидкого зв'язку зібрані в один дотик!" }
+            {
+                title: "Вітаємо! 👋",
+                icon: "fa-rocket",
+                text: `<div class="onboard-visual"><div class="onboard-phone-mockup"><div class="onboard-screen"><div class="onboard-header-bar">Гуртожиток №1 ПНУ</div><div class="onboard-nav-row"><div class="onboard-nav-pill onboard-pill-active"><span>💰</span> Бюджет</div><div class="onboard-nav-pill"><span>📢</span> Події</div><div class="onboard-nav-pill"><span>🧹</span> Санітарка</div></div><div class="onboard-nav-row"><div class="onboard-nav-pill"><span>🛠</span> Скарги</div><div class="onboard-nav-pill"><span>📞</span> Контакти</div><div class="onboard-nav-pill"><span>ℹ️</span> Інфо</div></div></div></div></div><p class="mt-4 text-slate-600 dark:text-slate-300 leading-relaxed"><b>Гуртожиток №1 ПНУ</b> — твій цифровий помічник! Усе про бюджет, чергування, скарги та контакти тепер у одному додатку.</p>`
+            },
+            {
+                title: "Фінанси та звернення 💸",
+                icon: "fa-chart-pie",
+                text: `<div class="onboard-visual"><div class="onboard-phone-mockup"><div class="onboard-screen"><div class="onboard-highlight-box onboard-highlight-green"><div class="onboard-mini-card"><span class="onboard-amount">+12 500 ₴</span><span class="onboard-label">Загальний баланс</span></div><div class="onboard-pulse-ring"></div></div><div class="onboard-highlight-box onboard-highlight-rose" style="margin-top:8px"><div class="onboard-mini-card"><span class="onboard-icon">🛠</span><span class="onboard-label">Створити звернення →</span></div><div class="onboard-pulse-ring"></div></div></div></div></div><p class="mt-4 text-slate-600 dark:text-slate-300 leading-relaxed">У <b>Бюджеті</b> — прозорий баланс фонду з фото-звітами. У <b>Скаргах</b> — подавай заявку з фото-доказами та отримуй відповідь.</p>`
+            },
+            {
+                title: "Чергування та контакти 🧹📞",
+                icon: "fa-users",
+                text: `<div class="onboard-visual"><div class="onboard-phone-mockup"><div class="onboard-screen"><div class="onboard-highlight-box onboard-highlight-teal"><div class="onboard-mini-row"><span>🧹</span><span class="onboard-label">1 поверх — кімн. 12 ✅</span></div><div class="onboard-pulse-ring"></div></div><div class="onboard-highlight-box onboard-highlight-blue" style="margin-top:8px"><div class="onboard-mini-row"><span>👤</span><span class="onboard-label">Завідувач 📞 ✈️</span></div><div class="onboard-pulse-ring"></div></div></div></div></div><p class="mt-4 text-slate-600 dark:text-slate-300 leading-relaxed"><b>Санітарка</b> — графік чергувань по поверхах. <b>Контакти</b> — телефони та Telegram завідувача, старости і заступників в один дотик!</p>`
+            },
+            {
+                title: "Опитування та інфо 📊",
+                icon: "fa-square-poll-vertical",
+                text: `<div class="onboard-visual"><div class="onboard-phone-mockup"><div class="onboard-screen"><div class="onboard-highlight-box onboard-highlight-violet"><div class="onboard-mini-row"><span>📊</span><span class="onboard-label">Голосуй за варіант!</span></div><div class="onboard-pulse-ring"></div></div><div class="onboard-highlight-box onboard-highlight-amber" style="margin-top:8px"><div class="onboard-mini-row"><span>ℹ️</span><span class="onboard-label">Інфо + FAQ + Пропозиції</span></div><div class="onboard-pulse-ring"></div></div></div></div></div><p class="mt-4 text-slate-600 dark:text-slate-300 leading-relaxed">У <b>Подіях</b> — опитування та оголошення. У <b>Інфо</b> — інструкція, часті питання та поле для пропозицій!</p>`
+            }
         ];
 
         let confirmCallback = null;
@@ -1884,8 +2345,18 @@
             contentBox.classList.add('step-animation');
 
             const iconEl = document.getElementById('welcome-step-icon');
+            iconEl.classList.remove('icon-activate');
+            void iconEl.offsetWidth;
             iconEl.innerHTML = `<i class="fa-solid ${step.icon}"></i>`;
-            document.getElementById('welcome-step-indicator').innerText = `Крок ${currentWelcomeStep + 1} з ${onboardingSteps.length}`;
+            iconEl.classList.add('icon-activate');
+
+            // Render step progress dots
+            const dotsEl = document.getElementById('welcome-step-dots');
+            if (dotsEl) {
+                dotsEl.innerHTML = onboardingSteps.map((_, i) =>
+                    `<div class="w-2 h-2 rounded-full transition-all duration-300 ${i === currentWelcomeStep ? 'bg-blue-500 dark:bg-blue-400 scale-125 shadow-md shadow-blue-500/40' : i < currentWelcomeStep ? 'bg-emerald-400 dark:bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}"></div>`
+                ).join('');
+            }
 
             if (currentWelcomeStep === 0) {
                 document.getElementById('welcome-prev-btn').classList.add('invisible');
@@ -2464,7 +2935,7 @@
                     const phoneHref = normalizePhoneHref(l.phone);
                     // iOS Telegram Mini App does not open tel: links via <a href>;
                     // use onclick with window.open for cross-platform compatibility
-                    linksHTML += `<button type="button" onclick="var p='${escapeAttr(phoneHref)}';if(window.Telegram&&window.Telegram.WebApp){window.Telegram.WebApp.openLink('tel:'+p);}else{window.open('tel:'+p,'_self');}" class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center shadow-md btn-push text-[14px]"><i class="fa-solid fa-phone"></i></button>`;
+                    linksHTML += `<button type="button" onclick="showPhonePopup('${escapeAttr(phoneHref)}','${escapeAttr(l.phone)}')" class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center shadow-md btn-push text-[14px]"><i class=\"fa-solid fa-phone\"></i></button>`;
                 }
                 if (l.tg && l.tg.trim() !== '') {
                     linksHTML += `<a href="https://t.me/${l.tg.replace('@','')}" target="_blank" class="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-400 to-blue-500 text-white flex items-center justify-center shadow-md btn-push text-[14px]"><i class="fa-solid fa-paper-plane"></i></a>`;
@@ -2953,6 +3424,37 @@
                 document.getElementById('modal-duty-sanitary').classList.add('hidden');
             });
             document.getElementById('duty-sanitary-save')?.addEventListener('click', () => saveDutySanitaryFromModal());
+
+            // Phone popup modal
+            window.showPhonePopup = function(formattedNum, displayNum) {
+                document.getElementById('phone-popup-number').textContent = displayNum || formattedNum;
+                document.getElementById('modal-phone-popup').classList.remove('hidden');
+            };
+            document.getElementById('phone-popup-close')?.addEventListener('click', () => {
+                document.getElementById('modal-phone-popup').classList.add('hidden');
+            });
+            document.getElementById('phone-popup-copy')?.addEventListener('click', () => {
+                const num = document.getElementById('phone-popup-number').textContent;
+                navigator.clipboard.writeText(num).then(() => {
+                    showToast('Номер скопійовано! 📋');
+                    document.getElementById('modal-phone-popup').classList.add('hidden');
+                }).catch(() => {
+                    // Fallback for older browsers / Telegram WebApp
+                    const ta = document.createElement('textarea');
+                    ta.value = num;
+                    ta.style.position = 'fixed';
+                    ta.style.opacity = '0';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    showToast('Номер скопійовано! 📋');
+                    document.getElementById('modal-phone-popup').classList.add('hidden');
+                });
+            });
+            document.getElementById('modal-phone-popup')?.addEventListener('click', (e) => {
+                if (e.target.id === 'modal-phone-popup') document.getElementById('modal-phone-popup').classList.add('hidden');
+            });
             document.getElementById('submit-sanitary-comment-btn')?.addEventListener('click', submitSanitaryComment);
 
             document.getElementById('confirm-cancel-btn').addEventListener('click', () => {
@@ -2986,23 +3488,36 @@
                     document.getElementById(tabId).classList.remove('hidden');
                     document.getElementById(tabId).classList.add('tab-content-active');
                     
+                    // Update all tab buttons to inactive glass state with colored but muted icons
                     document.querySelectorAll('.tab-btn').forEach(b => {
-                        b.className = 'tab-btn relative flex flex-col items-center justify-center w-[60px] h-[60px] rounded-[20px] btn-push hover:bg-white/40 dark:hover:bg-slate-800/40 transition-colors';
+                        b.className = 'tab-btn relative flex flex-col items-center justify-center w-[58px] h-[58px] rounded-[18px] nav-glass-inactive btn-push nav-glass-anim-out';
                         const originalTab = b.getAttribute('data-tab');
+                        const color = tabColorsMap[originalTab] || 'slate';
+                        // Remove gradient overlay from all
+                        const oldGrad = b.querySelector('.nav-gradient-bg');
+                        if (oldGrad) oldGrad.remove();
                         const iconInner = b.querySelector('i, svg');
                         if (iconInner) {
-                            iconInner.className = iconInner.classList.contains('nav-svg-icon') ? 'nav-svg-icon w-6 h-6 text-slate-400 dark:text-slate-500 fill-current transition-colors' : `fa-solid ${tabIconsMap[originalTab]} text-[18px] text-slate-400 dark:text-slate-500 transition-colors`;
+                            iconInner.className = iconInner.classList.contains('nav-svg-icon') ? `nav-svg-icon nav-icon-colored w-[19px] h-[19px] text-${color}-500 fill-current` : `fa-solid ${tabIconsMap[originalTab]} text-[19px] nav-icon-colored text-${color}-500`;
                         }
                         const label = b.querySelector('span');
-                        if (label) { label.className = 'text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-1.5 tracking-wide'; }
+                        if (label) { label.className = 'text-[9px] font-bold text-slate-500 dark:text-slate-400 mt-1 tracking-wide'; label.classList.remove('relative','z-[1]'); }
+                        setTimeout(() => b.classList.remove('nav-glass-anim-out'), 250);
                     });
 
-                    btn.className = 'tab-btn relative flex flex-col items-center justify-center w-[60px] h-[60px] rounded-[20px] bg-white/90 dark:bg-slate-800/90 shadow-md border border-white/50 dark:border-slate-600/50 btn-push';
+                    // Activate clicked tab with glass pill + gradient
+                    btn.className = 'tab-btn relative flex flex-col items-center justify-center w-[58px] h-[58px] rounded-[18px] nav-glass-active btn-push nav-glass-anim-in';
+                    const color = tabColorsMap[tabId] || 'slate';
+                    // Add gradient overlay
+                    let gradDiv = btn.querySelector('.nav-gradient-bg');
+                    if (!gradDiv) { gradDiv = document.createElement('div'); btn.prepend(gradDiv); }
+                    gradDiv.className = `nav-gradient-bg nav-gradient-${color}`;
                     if (icon) {
-                        icon.className = icon.classList.contains('nav-svg-icon') ? 'nav-svg-icon w-6 h-6 text-teal-500 fill-current drop-shadow-sm' : `fa-solid ${tabIconsMap[tabId]} text-[18px] drop-shadow-sm ${tabId === 'tab-budget' ? 'text-emerald-500' : tabId === 'tab-complaints' ? 'text-rose-500' : 'text-blue-500'}`;
+                        icon.className = icon.classList.contains('nav-svg-icon') ? `nav-svg-icon nav-icon-colored w-[19px] h-[19px] svg-grad-teal fill-current` : `fa-solid ${tabIconsMap[tabId]} text-[19px] nav-icon-colored icon-grad-${color}`;
                     }
                     const activeLabel = btn.querySelector('span');
-                    if (activeLabel) { activeLabel.className = 'text-[10px] font-black text-slate-900 dark:text-white mt-1.5 tracking-wide'; }
+                    if (activeLabel) { activeLabel.className = `text-[9px] font-black text-${color}-700 dark:text-${color}-300 mt-1 tracking-wide relative z-[1]`; }
+                    setTimeout(() => btn.classList.remove('nav-glass-anim-in'), 350);
                     if (tabId === 'tab-duty') renderDuty();
                     // Fix for iOS: re-render goals when returning to budget tab
                     if (tabId === 'tab-budget') {
@@ -3122,6 +3637,28 @@
                     showToast(err.message || 'Не вдалося надіслати заявку', 'error');
                 } finally {
                     document.getElementById('db-loading').classList.add('hidden');
+                }
+            });
+
+            // Suggestion form handler — sends suggestion as a push notification to admin
+            document.getElementById('form-suggestion')?.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const text = document.getElementById('suggestion-input').value.trim();
+                if (!text) {
+                    showToast('Напишіть вашу пропозицію', 'error');
+                    return;
+                }
+                try {
+                    const tg = getTelegramUser();
+                    const fromLabel = tg?.name || tg?.username || 'Анонім';
+                    await DormDatabase.notifyPush(
+                        '💡 Нова пропозиція до додатку',
+                        `Від: ${fromLabel}\n\n${text.length > 500 ? text.slice(0, 500) + '...' : text}`
+                    );
+                    document.getElementById('suggestion-input').value = '';
+                    showToast('Пропозицію надіслано! Дякуємо! 💡');
+                } catch (err) {
+                    showToast(err.message || 'Не вдалося надіслати', 'error');
                 }
             });
 
