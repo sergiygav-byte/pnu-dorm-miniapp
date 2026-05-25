@@ -1,3 +1,11 @@
 config.js
+config.public.js
 .env
 .env.local
+.env.production
+node_modules/
+dist/
+build/
+*.log
+.DS_Store
+Thumbs.db
