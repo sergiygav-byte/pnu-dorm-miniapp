@@ -101,12 +101,13 @@
             }
 
             /* ===== GPU Performance Optimizations for Telegram Mini App ===== */
-            .tab-btn,
-            .btn-push,
-            .cascade-item,
-            .animate-modal,
-            .nav-glass-active,
-            .nav-glass-inactive {
+            /* Scoped to iOS (tg-ios) to prevent specific scroll repaint bugs while avoiding layer explosion on Android */
+            html.tg-ios .tab-btn,
+            html.tg-ios .btn-push,
+            html.tg-ios .cascade-item,
+            html.tg-ios .animate-modal,
+            html.tg-ios .nav-glass-active,
+            html.tg-ios .nav-glass-inactive {
                 will-change: transform, opacity;
                 -webkit-transform: translateZ(0);
                 transform: translateZ(0);
@@ -115,20 +116,20 @@
                 /* paint containment removed — caused image disappearing on iOS */
                 contain: style;
             }
-            /* Reduce paint on animated elements */
-            .diia-glass-card,
-            .app-tab {
+            /* Reduce paint on animated elements on iOS */
+            html.tg-ios .diia-glass-card,
+            html.tg-ios .app-tab {
                 will-change: transform, opacity;
             }
-            /* Force GPU layer for images inside glass cards and tab content — prevents iOS invisible-image bug */
-            .diia-glass-card img,
-            .app-tab img,
-            .tab-btn i,
-            .tab-btn svg,
-            header i,
-            header svg,
-            header img,
-            header {
+            /* Force GPU layer on iOS only for images/icons inside glass cards and tab content — prevents iOS invisible-image bug */
+            html.tg-ios .diia-glass-card img,
+            html.tg-ios .app-tab img,
+            html.tg-ios .tab-btn i,
+            html.tg-ios .tab-btn svg,
+            html.tg-ios header i,
+            html.tg-ios header svg,
+            html.tg-ios header img,
+            html.tg-ios header {
                 display: block;
                 -webkit-transform: translate3d(0, 0, 0);
                 transform: translate3d(0, 0, 0);
@@ -435,8 +436,8 @@
             /* Prevent iOS/Telegram WebView “invisible while scrolling” glitch */
             /* Avoid GPU layer issues caused by contain+transform+backdrop effects */
             /* NOTE: keep this minimal; too much forced compositing can worsen scroll flicker */
-            .cascade-item,
-            .cascade-item * {
+            html.tg-ios .cascade-item,
+            html.tg-ios .cascade-item * {
                 -webkit-backface-visibility: hidden;
                 backface-visibility: hidden;
             }
@@ -5721,8 +5722,11 @@
                 if (tg) {
                     tg.ready();
                     tg.expand();
-                    if (/android/i.test(tg.platform || navigator.userAgent)) {
+                    const platform = tg.platform || "";
+                    if (/android/i.test(platform || navigator.userAgent)) {
                         document.documentElement.classList.add("tg-android");
+                    } else if (/iphone|ipad|ipod|ios/i.test(platform || navigator.userAgent)) {
+                        document.documentElement.classList.add("tg-ios");
                     }
                     if (tg.themeParams?.bg_color) {
                         document.documentElement.style.setProperty(
