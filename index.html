@@ -102,10 +102,12 @@
             /* Reduce paint on animated elements */
             .diia-glass-card,
             .app-tab {
-                contain: style;
+                /* Prepared for performance, but avoid strict container style on tab content to prevent image repaint issues on iOS. */
             }
-            /* Force GPU layer for images inside glass cards — prevents iOS invisible-image bug */
-            .diia-glass-card img {
+            /* Force GPU layer for images inside glass cards and tab content — prevents iOS invisible-image bug */
+            .diia-glass-card img,
+            .app-tab img {
+                display: block;
                 -webkit-transform: translate3d(0, 0, 0);
                 transform: translate3d(0, 0, 0);
                 -webkit-backface-visibility: hidden;
@@ -169,16 +171,16 @@
             .dark .bg-diia-light {
                 background: linear-gradient(
                     -45deg,
-                    #0d0b1f,
-                    #1a0a2e,
-                    #061a30,
-                    #0d1f3c,
-                    #1a1040,
-                    #0a2020,
-                    #1f0d2e,
-                    #0a1520
+                    #0b1224,
+                    #122343,
+                    #102d55,
+                    #0c4f85,
+                    #2f7cd8,
+                    #5f7eff,
+                    #0e7490,
+                    #0b1224
                 );
-                background-size: 800% 800%;
+                background-size: 240% 240%;
                 animation: gradient-flow 22s ease-in-out infinite;
             }
 
@@ -1864,7 +1866,7 @@
                             Гуртожиток №1 🏫
                         </h1>
                         <p
-                            class="text-[12px] text-slate-600 dark:text-slate-400 font-semibold truncate mt-1 tracking-wide"
+                            class="text-[12px] text-slate-600 dark:text-slate-400 font-semibold whitespace-normal break-words leading-snug mt-1 tracking-wide"
                         >
                             Поліський національний університет
                         </p>
@@ -2053,7 +2055,7 @@
                         </h2>
                         <button
                             id="admin-add-poll-btn"
-                            class="hidden px-4 py-1.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl font-black text-[13px] btn-push shadow-md"
+                            class="hidden px-4 py-1.5 bg-gradient-to-r from-sky-600 to-cyan-600 text-white rounded-xl font-black text-[13px] btn-push shadow-md"
                         >
                             + Опитування
                         </button>
@@ -2248,7 +2250,6 @@
                                 type="text"
                                 id="compSubject"
                                 placeholder="Наприклад: Не працює розетка на кухні або несправний кран"
-                                required
                                 class="w-full px-4 py-3 text-[14px] font-medium bg-white/70 dark:bg-slate-800/60 border border-white/80 dark:border-slate-600/50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-rose-500/40 text-slate-800 dark:text-slate-100 shadow-sm transition-all placeholder:text-slate-400"
                             />
                         </div>
@@ -2261,7 +2262,6 @@
                                 id="compDesc"
                                 rows="3"
                                 placeholder="Опишіть ситуацію максимально детально..."
-                                required
                                 class="w-full px-4 py-3 text-[14px] font-medium bg-white/70 dark:bg-slate-800/60 border border-white/80 dark:border-slate-600/50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-rose-500/40 text-slate-800 dark:text-slate-100 shadow-sm transition-all placeholder:text-slate-400 resize-none"
                             ></textarea>
                         </div>
@@ -2437,7 +2437,7 @@
                         >
                             <div>
                                 <p
-                                    class="text-[12px] font-black text-violet-900 dark:text-violet-200"
+                                    class="text-[12px] font-black text-sky-900 dark:text-sky-200"
                                 >
                                     🧪 Тест push — тільки мені
                                 </p>
@@ -2445,8 +2445,8 @@
                                     id="admin-push-test-hint"
                                     class="text-[11px] text-slate-500 mt-0.5"
                                 >
-                                    Вимкнено — push йде всім (ігнорує глобальне
-                                    вимкнення)
+                                    Вимкнено — push йде всім, увімкнено — тільки вам
+                                    (ігнорує глобальне вимкнення)
                                 </p>
                             </div>
                             <input
@@ -4814,13 +4814,13 @@
                             <div class="flex justify-between items-center gap-2">
                                 ${
                                     canVote
-                                        ? `<button type="button" onclick="castPollVote('${p.id}', ${idx})" class="flex-1 text-left px-3 py-2 rounded-xl bg-white/60 dark:bg-slate-800/60 border border-violet-500/30 text-[13px] font-bold text-slate-800 dark:text-slate-100 btn-push">${escapeHtml(label)}</button>`
+                                        ? `<button type="button" onclick="castPollVote('${p.id}', ${idx})" class="flex-1 text-left px-3 py-2 rounded-xl bg-white/60 dark:bg-slate-800/60 border border-sky-500/30 text-[13px] font-bold text-slate-800 dark:text-slate-100 btn-push">${escapeHtml(label)}</button>`
                                         : `<span class="text-[13px] font-bold text-slate-800 dark:text-slate-100 flex-1">${escapeHtml(label)} ${voted ? "✓" : ""}</span>`
                                 }
-                                <span class="text-[11px] font-black text-violet-600">${r.percent}% <span class="text-slate-400 font-bold">(${r.count})</span></span>
+                                <span class="text-[11px] font-black text-sky-600">${r.percent}% <span class="text-slate-400 font-bold">(${r.count})</span></span>
                             </div>
                             <div class="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
-                                <div class="bg-violet-500 h-full rounded-full" style="width:${r.percent}%"></div>
+                                <div class="bg-sky-500 h-full rounded-full" style="width:${r.percent}%"></div>
                             </div>
                         </div>`;
                     });
@@ -4846,7 +4846,7 @@
                         <div>
                             <h4 class="text-[15px] font-black text-slate-800 dark:text-slate-100">${escapeHtml(p.title)}</h4>
                             <p class="text-[12px] text-slate-600 dark:text-slate-400 mt-1">${escapeHtml(p.desc || "")}</p>
-                            <p class="text-[10px] font-bold text-violet-600 dark:text-violet-400 mt-1">${typeLabel} · ${endsLabel}</p>
+                            <p class="text-[10px] font-bold text-sky-600 dark:text-sky-400 mt-1">${typeLabel} · ${endsLabel}</p>
                         </div>
                         <span class="text-[10px] font-black uppercase px-2 py-1 rounded-lg shrink-0 ${statusClass}">${statusLabel}</span>
                     </div>
@@ -4855,10 +4855,10 @@
                     ${
                         showPublicVoters
                             ? `
-                        <button type="button" onclick="togglePollVoters('${p.id}')" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-violet-500/10 text-violet-700 dark:text-violet-300 text-[11px] font-black btn-push">
+                        <button type="button" onclick="togglePollVoters('${p.id}')" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300 text-[11px] font-black btn-push">
                             <i class="fa-solid fa-users text-[10px]"></i> ${votersExpanded ? "Сховати" : "Хто проголосував"}
                         </button>
-                        ${votersExpanded ? `<div class="p-3 rounded-xl bg-white/50 dark:bg-slate-800/50 border border-violet-500/20 space-y-1.5">${buildPollVotersPanelHtml(p)}</div>` : ""}
+                        ${votersExpanded ? `<div class="p-3 rounded-xl bg-white/50 dark:bg-slate-800/50 border border-sky-500/20 space-y-1.5">${buildPollVotersPanelHtml(p)}</div>` : ""}
                     `
                             : ""
                     }
@@ -5324,15 +5324,15 @@
                     fieldsContainer.innerHTML = `
                     <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Назва цілі</label>
-                        <input type="text" id="input-goal-title" value="${item ? item.title : ""}" required class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all">
+                        <input type="text" id="input-goal-title" value="${item ? item.title : ""}" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all">
                     </div>
                     <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Опис / Деталі</label>
-                        <textarea id="input-goal-desc" rows="2" required class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all">${item ? item.desc : ""}</textarea>
+                        <textarea id="input-goal-desc" rows="2" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all">${item ? item.desc : ""}</textarea>
                     </div>
                     <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Необхідна сума (₴)</label>
-                        <input type="number" id="input-goal-target" value="${item ? item.target : ""}" required class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all">
+                        <input type="number" id="input-goal-target" value="${item ? item.target : ""}" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all">
                     </div>
                 `;
                 } else if (sheet === "payments") {
@@ -5343,15 +5343,15 @@
                     fieldsContainer.innerHTML = `
                     <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">№ Кімнати</label>
-                        <input type="text" id="input-pay-room" value="${item ? item.room : ""}" required class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all">
+                        <input type="text" id="input-pay-room" value="${item ? item.room : ""}" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all">
                     </div>
                     <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">ПІБ мешканця</label>
-                        <input type="text" id="input-pay-name" value="${item ? item.name : ""}" required class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all">
+                        <input type="text" id="input-pay-name" value="${item ? item.name : ""}" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all">
                     </div>
                     <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Сума внеску (₴)</label>
-                        <input type="number" id="input-pay-amount" value="${item ? item.amount : "0"}" required class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all">
+                        <input type="number" id="input-pay-amount" value="${item ? item.amount : "0"}" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all">
                     </div>
                     <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Дата</label>
@@ -5370,15 +5370,15 @@
                     fieldsContainer.innerHTML = `
                     <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Назва витрати</label>
-                        <input type="text" id="input-exp-title" required class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all">
+                        <input type="text" id="input-exp-title" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all">
                     </div>
                     <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Сума (₴)</label>
-                        <input type="number" id="input-exp-amount" required class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all">
+                        <input type="number" id="input-exp-amount" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all">
                     </div>
                     <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Опис</label>
-                        <textarea id="input-exp-desc" rows="2" required class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all"></textarea>
+                        <textarea id="input-exp-desc" rows="2" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all"></textarea>
                     </div>
                     <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1 block">Фото або PDF</label>
@@ -5532,11 +5532,11 @@
                     fieldsContainer.innerHTML = `
                     <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Тема</label>
-                        <input type="text" id="input-comp-subject" value="${item ? item.subject : ""}" required class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all">
+                        <input type="text" id="input-comp-subject" value="${item ? item.subject : ""}" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all">
                     </div>
                     <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Опис</label>
-                        <textarea id="input-comp-desc" rows="3" required class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all">${item ? item.desc : ""}</textarea>
+                        <textarea id="input-comp-desc" rows="3" class="w-full px-4 py-3 text-[14px] border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100 transition-all">${item ? item.desc : ""}</textarea>
                     </div>
                     <div class="space-y-1">
                         <label class="text-[12px] font-black text-slate-500 uppercase tracking-wider pl-1">Статус</label>
@@ -5732,6 +5732,8 @@
                 }
 
                 openWelcomeInstruction();
+                const startLoader = document.getElementById("db-loading");
+                if (startLoader) startLoader.classList.add("hidden");
 
                 document
                     .getElementById("welcome-next-btn")
