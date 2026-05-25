@@ -62,7 +62,23 @@
             }
 
             .dark body {
-                color: #f1f5f9 !important; /* Наймиліший slate для contrast */
+                color: #f8fafc !important;
+            }
+
+            .dark .text-slate-300,
+            .dark .text-slate-400,
+            .dark .text-slate-500,
+            .dark .text-slate-600 {
+                color: #e2e8f0 !important;
+            }
+
+            .dark .bg-white\/60,
+            .dark .bg-white\/40,
+            .dark .bg-white\/50,
+            .dark .bg-slate-900\/60,
+            .dark .bg-slate-950\/60,
+            .dark .bg-slate-800\/60 {
+                background-color: rgba(15, 23, 42, 0.88) !important;
             }
 
             .scrollbar-none::-webkit-scrollbar {
@@ -106,13 +122,19 @@
             }
             /* Force GPU layer for images inside glass cards and tab content — prevents iOS invisible-image bug */
             .diia-glass-card img,
-            .app-tab img {
+            .app-tab img,
+            .tab-btn i,
+            .tab-btn svg,
+            header i,
+            header svg,
+            header img {
                 display: block;
                 -webkit-transform: translate3d(0, 0, 0);
                 transform: translate3d(0, 0, 0);
                 -webkit-backface-visibility: hidden;
                 backface-visibility: hidden;
                 opacity: 1 !important;
+                will-change: transform, opacity;
             }
             /* Ensure smooth scrolling */
             main {
@@ -166,19 +188,19 @@
                 position: relative;
             }
 
-            /* Темна тема — насичені глибокі кольори */
+            /* Темна тема — насичені глибокі чорні кольори */
             .dark body,
             .dark .bg-diia-light {
                 background: linear-gradient(
                     -45deg,
-                    #0b1224,
-                    #122343,
-                    #102d55,
-                    #0c4f85,
-                    #2f7cd8,
-                    #5f7eff,
-                    #0e7490,
-                    #0b1224
+                    #03050c,
+                    #08121f,
+                    #0d1d31,
+                    #102d4e,
+                    #113965,
+                    #0d2a42,
+                    #0b1830,
+                    #03050c
                 );
                 background-size: 240% 240%;
                 animation: gradient-flow 22s ease-in-out infinite;
@@ -1845,7 +1867,7 @@
 
         <div class="max-w-md mx-auto px-4 pt-4 flex flex-col min-h-screen">
             <header
-                class="flex items-center justify-between mb-6 bg-white/50 dark:bg-slate-900/50 p-2.5 rounded-[28px] border border-white/60 dark:border-slate-700/60 backdrop-blur-xl shadow-lg shadow-slate-200/20 dark:shadow-black/20 relative z-10"
+                class="flex items-center justify-between mb-6 bg-white/75 dark:bg-slate-950/80 p-2.5 rounded-[28px] border border-white/70 dark:border-slate-700/80 backdrop-blur-xl shadow-lg shadow-slate-200/20 dark:shadow-black/25 relative z-10"
             >
                 <div class="flex items-center gap-3 min-w-0 flex-1 pl-1">
                     <div class="relative group">
@@ -1876,7 +1898,7 @@
                 <div class="flex items-center gap-2 ml-2 shrink-0 pr-1">
                     <button
                         id="themeToggle"
-                        class="w-10 h-10 rounded-2xl bg-white/80 dark:bg-slate-800/80 flex items-center justify-center border border-white/80 dark:border-slate-600/50 shadow-sm text-slate-700 dark:text-slate-300 btn-push hover:bg-white transition-colors"
+                        class="w-10 h-10 rounded-2xl bg-white/90 dark:bg-slate-950/90 flex items-center justify-center border border-white/80 dark:border-slate-600/60 shadow-sm text-slate-700 dark:text-slate-300 btn-push hover:bg-white transition-colors"
                     >
                         <i class="fa-solid fa-moon dark:hidden text-[14px]"></i>
                         <i
@@ -1885,7 +1907,7 @@
                     </button>
                     <button
                         id="adminAuthBtn"
-                        class="w-10 h-10 rounded-2xl bg-white/80 dark:bg-slate-800/80 flex items-center justify-center border border-white/80 dark:border-slate-600/50 shadow-sm text-slate-700 dark:text-slate-300 btn-push hover:bg-white transition-colors"
+                        class="w-10 h-10 rounded-2xl bg-white/90 dark:bg-slate-950/90 flex items-center justify-center border border-white/80 dark:border-slate-600/60 shadow-sm text-slate-700 dark:text-slate-300 btn-push hover:bg-white transition-colors"
                     >
                         <i
                             id="adminIcon"
@@ -2701,13 +2723,6 @@
                                     Лише адмін бачить автора та текст
                                 </p>
                             </div>
-                            <button
-                                type="button"
-                                id="admin-refresh-suggestions-btn"
-                                class="px-3 py-1.5 bg-violet-500/20 text-violet-800 dark:text-violet-300 rounded-xl text-[11px] font-black uppercase btn-push border border-violet-400/30"
-                            >
-                                Оновити
-                            </button>
                         </div>
                         <div
                             id="admin-suggestions-list"
@@ -3246,7 +3261,7 @@
                 {
                     title: "📞 Контакти та ℹ️ Інфо",
                     icon: "fa-address-book",
-                    text: `<div class="onboard-visual"><div class="onboard-phone-mockup"><div class="onboard-screen"><div class="onboard-header-bar">📞 Контакти / ℹ️ Інфо</div><div class="onboard-highlight-box onboard-highlight-blue"><div class="onboard-mini-card" style="flex-direction:row;justify-content:space-between;align-items:center"><div><span style="font-size:8px;font-weight:900;color:#1d4ed8;display:block">👤 Завідувач</span><span style="font-size:7px;color:#475569;font-weight:700">Степаненко О.В.</span></div><div style="display:flex;gap:4px"><span style="font-size:13px">📱</span><span style="font-size:13px">✈️</span></div></div><div class="onboard-pulse-ring"></div></div><div style="margin-top:5px;padding:3px 6px;background:rgba(241,245,249,0.8);border-radius:8px;font-size:7px;font-weight:700;display:flex;justify-content:space-between;align-items:center"><span style="color:#475569">❓ Як дізнатися баланс?</span><span style="color:#94a3b8">▼</span></div><div style="margin-top:3px;padding:3px 6px;background:rgba(241,245,249,0.8);border-radius:8px;font-size:7px;font-weight:700;display:flex;justify-content:space-between;align-items:center"><span style="color:#475569">💡 Надіслати пропозицію</span><span style="color:#94a3b8">→</span></div></div></div></div><p class="mt-4 text-slate-600 dark:text-slate-300 leading-relaxed">У <b>Контактах</b> — телефони і Telegram завідувача та старости. В <b>Інфо</b> — FAQ, інструкція і форма для пропозицій щодо покращення додатку!</p>`,
+                    text: `<div class="onboard-visual"><div class="onboard-phone-mockup"><div class="onboard-screen"><div class="onboard-header-bar">📞 Контакти / ℹ️ Інфо</div><div class="onboard-highlight-box onboard-highlight-blue"><div class="onboard-mini-card" style="flex-direction:row;justify-content:space-between;align-items:center"><div><span style="font-size:8px;font-weight:900;color:#1d4ed8;display:block">👤 Завідувач</span><span style="font-size:7px;color:#475569;font-weight:700">Іваниско І.Л.</span></div><div style="display:flex;gap:4px"><span style="font-size:13px">📱</span><span style="font-size:13px">✈️</span></div></div><div class="onboard-pulse-ring"></div></div><div style="margin-top:5px;padding:3px 6px;background:rgba(241,245,249,0.8);border-radius:8px;font-size:7px;font-weight:700;display:flex;justify-content:space-between;align-items:center"><span style="color:#475569">❓ Як дізнатися баланс?</span><span style="color:#94a3b8">▼</span></div><div style="margin-top:3px;padding:3px 6px;background:rgba(241,245,249,0.8);border-radius:8px;font-size:7px;font-weight:700;display:flex;justify-content:space-between;align-items:center"><span style="color:#475569">💡 Надіслати пропозицію</span><span style="color:#94a3b8">→</span></div></div></div></div><p class="mt-4 text-slate-600 dark:text-slate-300 leading-relaxed">У <b>Контактах</b> — телефони і Telegram завідувача та старости. В <b>Інфо</b> — FAQ, інструкція і форма для пропозицій щодо покращення додатку!</p>`,
                 },
             ];
 
@@ -3681,7 +3696,10 @@
                     refreshMockDB();
                     applyMaintenanceOverlay();
                     renderAll();
-                    if (isAdmin()) await renderBotVisitors();
+                    if (isAdmin()) {
+                        await renderBotVisitors();
+                        await renderAdminSuggestions();
+                    }
                     showToast("Інформацію оновлено 🔄");
                 } catch (err) {
                     showToast(err.message || "Помилка оновлення", "error");
@@ -5810,9 +5828,6 @@
                     .getElementById("admin-refresh-visitors-btn")
                     ?.addEventListener("click", () => renderBotVisitors());
                 document
-                    .getElementById("admin-refresh-suggestions-btn")
-                    ?.addEventListener("click", () => renderAdminSuggestions());
-                document
                     .getElementById("admin-bot-push-toggle")
                     ?.addEventListener("change", async (e) => {
                         if (!isAdmin() || !currentAdminPassword) {
@@ -5838,7 +5853,6 @@
                         }
                     });
 
-                // Push test-mode toggle — send only to admin's own TG account
                 document
                     .getElementById("admin-push-test-toggle")
                     ?.addEventListener("change", (e) => {
@@ -5872,6 +5886,7 @@
                             showToast("🧪 Тест-режим OFF — push йде всім");
                         }
                     });
+
                 document
                     .getElementById("duty-sanitary-cancel")
                     ?.addEventListener("click", () => {
@@ -6005,13 +6020,29 @@
 
                         document
                             .querySelectorAll(".app-tab")
-                            .forEach((t) => t.classList.add("hidden"));
-                        document
-                            .getElementById(tabId)
-                            .classList.remove("hidden");
-                        document
-                            .getElementById(tabId)
-                            .classList.add("tab-content-active");
+                            .forEach((t) => {
+                                t.classList.add("hidden");
+                                t.classList.remove("tab-content-active");
+                            });
+                        const activeTab = document.getElementById(tabId);
+                        activeTab.classList.remove("hidden");
+                        activeTab.classList.add("tab-content-active");
+
+                        if (tabId === "tab-duty") {
+                            const dutyImage = document.querySelector(
+                                "#tab-duty img",
+                            );
+                            if (dutyImage) {
+                                dutyImage.style.transform =
+                                    "translateZ(0)";
+                                dutyImage.style.webkitTransform =
+                                    "translateZ(0)";
+                                requestAnimationFrame(() => {
+                                    dutyImage.style.transform = "";
+                                    dutyImage.style.webkitTransform = "";
+                                });
+                            }
+                        }
 
                         // Update all tab buttons to inactive glass state with colored but muted icons
                         document.querySelectorAll(".tab-btn").forEach((b) => {
