@@ -139,9 +139,9 @@
                 will-change: transform, opacity;
             }
             header {
-                position: sticky;
-                top: 0;
-                z-index: 30;
+                position: sticky !important;
+                top: 0 !important;
+                z-index: 30 !important;
                 backdrop-filter: blur(16px);
                 background: rgba(255, 255, 255, 0.82);
             }
@@ -706,19 +706,31 @@
             }
 
             /* ===== ANDROID PERFORMANCE: remove all backdrop-filter ===== */
-            /* Uses attribute selector to catch ALL Tailwind backdrop-blur-* classes */
-            html.tg-android [class*="backdrop-blur"] {
+            /* Definitive Android Fix: Remove ALL backdrop-filters from ALL elements to prevent Chromium rendering glitches */
+            html.tg-android *,
+            html.tg-android *::before,
+            html.tg-android *::after {
                 backdrop-filter: none !important;
                 -webkit-backdrop-filter: none !important;
             }
 
+            /* Android: header solid background (instead of blur) */
+            html.tg-android header {
+                background: rgba(248, 250, 252, 0.95) !important;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+            }
+            html.tg-android.dark header {
+                background: rgba(15, 23, 42, 0.95) !important;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+            }
+
             /* Android: glass cards — solid semi-transparent backgrounds */
             html.tg-android .diia-glass-card {
-                background: rgba(255, 255, 255, 0.88);
+                background: rgba(255, 255, 255, 0.94) !important;
                 box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
             }
             html.tg-android.dark .diia-glass-card {
-                background: rgba(15, 23, 42, 0.92);
+                background: rgba(15, 23, 42, 0.94) !important;
             }
 
             /* Android: kill ALL shimmer/glimmer animations */
@@ -1173,12 +1185,12 @@
 
             /* Android adjustments */
             html.tg-android .nav-glass-bar {
-                backdrop-filter: blur(20px) saturate(140%);
-                -webkit-backdrop-filter: blur(20px) saturate(140%);
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
             }
             html.tg-android .nav-glass-active {
-                backdrop-filter: blur(12px);
-                -webkit-backdrop-filter: blur(12px);
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
             }
             html.tg-android .nav-glass-active::before {
                 animation-duration: 8s;
