@@ -3684,9 +3684,8 @@
                         "Помилка підключення до бази. Перевірте config.js",
                         "error",
                     );
-                } finally {
-                    loader.classList.add("hidden");
                 }
+                // Do NOT hide loader here — it will be hidden after renderAll()
             }
 
             function isAdmin() {
@@ -4560,10 +4559,10 @@
                 renderComplaints();
                 renderLeaders();
 
-                document.getElementById("info-app-content").innerHTML =
-                    mockDB.info.content;
-                document.getElementById("duty-rules-content").innerHTML =
-                    mockDB.rules.content;
+                const infoContentEl = document.getElementById("info-app-content");
+                if (infoContentEl) {
+                    infoContentEl.innerHTML = mockDB.info.content || "";
+                }
 
                 renderSanitaryComments();
                 applyMaintenanceOverlay();
@@ -5790,6 +5789,12 @@
                         localStorage.removeItem("pnu_admin_session_v11");
                     }
                 }
+
+                // Render everything first, THEN show onboarding if needed
+                updateAdminUI();
+                renderAll();
+                // On initial load, mark the active (budget) tab as seen
+                clearTabBadge("tab-budget");
 
                 openWelcomeInstruction();
                 const startLoader = document.getElementById("db-loading");
