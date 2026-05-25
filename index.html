@@ -118,7 +118,7 @@
             /* Reduce paint on animated elements */
             .diia-glass-card,
             .app-tab {
-                /* Prepared for performance, but avoid strict container style on tab content to prevent image repaint issues on iOS. */
+                will-change: transform, opacity;
             }
             /* Force GPU layer for images inside glass cards and tab content — prevents iOS invisible-image bug */
             .diia-glass-card img,
@@ -127,7 +127,8 @@
             .tab-btn svg,
             header i,
             header svg,
-            header img {
+            header img,
+            header {
                 display: block;
                 -webkit-transform: translate3d(0, 0, 0);
                 transform: translate3d(0, 0, 0);
@@ -135,6 +136,16 @@
                 backface-visibility: hidden;
                 opacity: 1 !important;
                 will-change: transform, opacity;
+            }
+            header {
+                position: sticky;
+                top: 0;
+                z-index: 30;
+                backdrop-filter: blur(16px);
+                background: rgba(255, 255, 255, 0.82);
+            }
+            .dark header {
+                background: rgba(15, 23, 42, 0.88);
             }
             /* Ensure smooth scrolling */
             main {
@@ -491,6 +502,59 @@
             .step-animation {
                 animation: stepFadeIn 0.4s cubic-bezier(0.25, 1, 0.5, 1)
                     forwards;
+            }
+
+            .sanitary-item {
+                opacity: 0;
+                animation: stepFadeIn 0.45s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            }
+            .sanitary-item:nth-child(1) {
+                animation-delay: 0.08s;
+            }
+            .sanitary-item:nth-child(2) {
+                animation-delay: 0.14s;
+            }
+            .sanitary-item:nth-child(3) {
+                animation-delay: 0.2s;
+            }
+            .sanitary-item:nth-child(4) {
+                animation-delay: 0.26s;
+            }
+            .sanitary-item:nth-child(5) {
+                animation-delay: 0.32s;
+            }
+
+            @keyframes slowBounce {
+                0%,
+                100% {
+                    transform: translateY(0);
+                }
+                50% {
+                    transform: translateY(-6px);
+                }
+            }
+            .animate-slow-bounce {
+                animation: slowBounce 4s ease-in-out infinite;
+            }
+
+            @keyframes sparkleTwinkle {
+                0%,
+                100% {
+                    opacity: 0.22;
+                    transform: scale(1);
+                }
+                50% {
+                    opacity: 0.65;
+                    transform: scale(1.12);
+                }
+            }
+            .sanitary-hero-icon {
+                position: relative;
+                background: linear-gradient(145deg, rgba(16, 185, 129, 0.18), rgba(14, 165, 233, 0.14));
+                box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 10px 30px rgba(15, 23, 42, 0.08);
+            }
+            .sanitary-hero-icon::after {
+                content: "";
             }
 
             /* Відскок іконок в меню */
@@ -2103,61 +2167,39 @@
                 </section>
 
                 <section id="tab-duty" class="app-tab space-y-5 hidden">
-                    <div
-                        class="diia-glass-card p-2 rounded-[28px] overflow-hidden shadow-md cascade-item"
-                    >
-                        <div
-                            class="relative rounded-[20px] overflow-hidden border border-white/40 dark:border-slate-700/50 group"
-                        >
-                            <div
-                                class="absolute inset-0 bg-slate-900/10 group-hover:bg-transparent transition-colors z-10 pointer-events-none"
-                            ></div>
-                            <img
-                                src="https://drive.google.com/thumbnail?id=1tYW5bFd98u7j9_Sv6XnZdVYC076uL8y0&sz=w800"
-                                alt="Графік санітарних чергувань"
-                                class="w-full h-auto object-cover cursor-pointer hover:scale-105 transition-transform duration-700 ease-out"
-                                onclick="
-                                    openLightbox(
-                                        'https://drive.google.com/thumbnail?id=1tYW5bFd98u7j9_Sv6XnZdVYC076uL8y0&sz=w1000',
-                                        'Графік санітарки',
-                                    )
-                                "
-                            />
-                        </div>
-                    </div>
-
-                    <div
-                        class="p-5 bg-white/60 dark:bg-slate-900/60 rounded-[28px] border border-white/60 dark:border-slate-700/50 shadow-md backdrop-blur-xl"
-                    >
-                        <div
-                            class="flex justify-between items-center mb-4 pb-3 border-b border-slate-300/40 dark:border-slate-700/50"
-                        >
-                            <span
-                                class="text-[15px] font-black uppercase tracking-wide text-slate-800 dark:text-slate-100 flex items-center gap-2 drop-shadow-sm"
-                            >
-                                <div class="p-1.5 bg-teal-500/20 rounded-lg">
-                                    <svg
-                                        class="w-4 h-4 text-teal-600 dark:text-teal-400 fill-current shrink-0"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"
-                                        />
-                                    </svg>
+                    <div class="diia-glass-card p-3 rounded-[28px] shadow-md cascade-item overflow-hidden bg-white/90 dark:bg-slate-950/95">
+                        <div class="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-teal-100 to-cyan-50 dark:from-slate-900 dark:to-slate-950">
+                            <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.24),transparent_23%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.18),transparent_28%)]"></div>
+                            <div class="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/60 dark:bg-cyan-300/15 blur-3xl"></div>
+                            <div class="absolute left-5 top-8 h-16 w-16 rounded-full bg-amber-200/30 dark:bg-amber-300/15 blur-3xl"></div>
+                            <div class="relative p-4 md:p-5">
+                                <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                                    <div class="flex items-center gap-4">
+                                        <div class="sanitary-hero-icon w-16 h-16 rounded-[24px] bg-gradient-to-br from-teal-500/16 to-cyan-500/10 dark:from-cyan-400/16 dark:to-slate-700/20 flex items-center justify-center text-teal-700 dark:text-cyan-300 text-4xl shadow-inner animate-slow-bounce">
+                                            🧹
+                                        </div>
+                                        <div>
+                                            <p class="text-[12px] font-black uppercase tracking-[0.35em] text-teal-700 dark:text-cyan-300">
+                                                Санітарка
+                                            </p>
+                                            <h2 class="mt-2 text-2xl font-black text-slate-900 dark:text-white">
+                                                Що входить у обов’язки
+                                            </h2>
+                                            <p class="mt-2 text-sm text-slate-600 dark:text-slate-400 font-medium">
+                                                Санітарка проводиться щосереди — регулярний цикл порядку для гуртожитку.
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
-                                Контроль чистоти
-                            </span>
-                            <button
-                                id="admin-edit-rules-btn"
-                                class="hidden px-3 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-[12px] font-black btn-push shadow-sm"
-                            >
-                                Змінити
-                            </button>
+                                <ul class="mt-6 grid gap-3 text-[14px] font-medium text-slate-700 dark:text-slate-200 leading-relaxed">
+                                    <li class="sanitary-item flex items-start gap-3"><span class="sanitary-emoji shrink-0 mt-1 inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-teal-500/20 text-teal-700 dark:bg-cyan-400/20 dark:text-cyan-200 font-black animate-slow-bounce">🧹</span>Миття підлоги.</li>
+                                    <li class="sanitary-item flex items-start gap-3"><span class="sanitary-emoji shrink-0 mt-1 inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-amber-400/20 text-amber-700 dark:bg-amber-300/20 dark:text-amber-200 font-black animate-slow-bounce">🧼</span>Миття газових плит.</li>
+                                    <li class="sanitary-item flex items-start gap-3"><span class="sanitary-emoji shrink-0 mt-1 inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-cyan-500/20 text-cyan-700 dark:bg-cyan-400/20 dark:text-cyan-200 font-black animate-slow-bounce">🧽</span>Миття плитки на стінах.</li>
+                                    <li class="sanitary-item flex items-start gap-3"><span class="sanitary-emoji shrink-0 mt-1 inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-200 font-black animate-slow-bounce">🪣</span>Мийка столів.</li>
+                                    <li class="sanitary-item flex items-start gap-3"><span class="sanitary-emoji shrink-0 mt-1 inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-violet-500/20 text-violet-700 dark:bg-violet-400/20 dark:text-violet-200 font-black animate-slow-bounce">🚿</span>Мийка раковин.</li>
+                                </ul>
+                            </div>
                         </div>
-                        <div
-                            id="duty-rules-content"
-                            class="text-[14px] text-slate-700 dark:text-slate-300 space-y-2.5 leading-relaxed font-medium"
-                        ></div>
                     </div>
 
                     <div class="flex justify-between items-center px-2">
