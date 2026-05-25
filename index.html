@@ -27,6 +27,9 @@
                     "ipt>",
             );
         </script>
+        <!-- WARNING: CDN Tailwind should NOT be used in production.
+             For production, install Tailwind CSS via npm and use PostCSS plugin or Tailwind CLI.
+             See: https://tailwindcss.com/docs/installation -->
         <script src="https://cdn.tailwindcss.com"></script>
 
         <link
@@ -89,6 +92,33 @@
                 scrollbar-width: none;
             }
 
+            html,
+            body {
+                min-height: 100%;
+                height: auto;
+                overflow-x: hidden;
+                overflow-y: auto !important;
+                overscroll-behavior: auto !important;
+                touch-action: auto !important;
+                -webkit-text-size-adjust: 100%;
+                -webkit-overflow-scrolling: touch;
+            }
+            body {
+                position: relative;
+            }
+            main,
+            .max-w-md,
+            .app-tab,
+            .diia-glass-card {
+                overflow-x: hidden !important;
+                overscroll-behavior: auto !important;
+                touch-action: auto !important;
+            }
+            .max-w-md.mx-auto.px-4.pt-4.flex.flex-col.min-h-screen {
+                min-height: auto !important;
+                height: auto !important;
+            }
+
             body {
                 -webkit-tap-highlight-color: transparent;
                 font-family: "Inter", sans-serif;
@@ -139,18 +169,19 @@
             }
             header {
                 position: sticky;
-                top: 0;
-                z-index: 30;
+                top: env(safe-area-inset-top, 0);
+                z-index: 50;
                 backdrop-filter: blur(16px);
-                background: rgba(255, 255, 255, 0.82);
+                background: rgba(255, 255, 255, 0.92);
             }
             .dark header {
-                background: rgba(15, 23, 42, 0.88);
+                background: rgba(15, 23, 42, 0.92);
             }
             /* Ensure smooth scrolling */
             main {
                 -webkit-overflow-scrolling: touch;
-                overscroll-behavior: contain;
+                overscroll-behavior: auto;
+                touch-action: auto;
             }
             /* Optimize backdrop-filter for Android */
             html.tg-android .diia-glass-card,
@@ -572,6 +603,76 @@
             }
             .sanitary-hero-icon::after {
                 content: "";
+            }
+
+            .tab-duty .animate-slow-bounce,
+            .tab-duty .sanitary-item,
+            .tab-duty .sanitary-hero-icon,
+            .tab-duty .sanitary-emoji {
+                animation: none !important;
+                transition: none !important;
+                will-change: auto !important;
+            }
+            .tab-duty .sanitary-item,
+            .tab-duty .sanitary-hero-icon,
+            .tab-duty .sanitary-emoji {
+                animation: none !important;
+                transition: none !important;
+            }
+            .tab-duty .sanitary-item {
+                opacity: 1 !important;
+            }
+            .tab-duty .diia-glass-card,
+            .tab-duty .diia-glass-card *,
+            .tab-duty .sanitary-hero-icon {
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
+            }
+            .tab-duty .diia-glass-card {
+                background: rgba(255, 255, 255, 0.95) !important;
+                box-shadow: none !important;
+            }
+
+            /* Mobile and low-end performance mode */
+            @media (max-width: 1024px), (prefers-reduced-motion: reduce) {
+                .bg-diia-light,
+                .diia-glass-card::before,
+                .nav-glass-active::before,
+                .nav-gradient-bg,
+                .animate-modal,
+                .icon-bounce,
+                .step-animation,
+                .animate-slow-bounce,
+                .tab-duty .sanitary-item,
+                .tab-duty .sanitary-hero-icon,
+                .tab-duty .sanitary-emoji {
+                    animation: none !important;
+                    transition: none !important;
+                }
+                .diia-glass-card::before,
+                .nav-glass-active::before {
+                    display: none !important;
+                }
+                .diia-glass-card,
+                .nav-glass-bar,
+                .nav-glass-active,
+                .nav-glass-inactive,
+                .tab-duty .diia-glass-card,
+                .tab-duty .diia-glass-card * {
+                    backdrop-filter: none !important;
+                    -webkit-backdrop-filter: none !important;
+                }
+                .tab-btn,
+                .btn-push,
+                .cascade-item,
+                .animate-modal,
+                .nav-glass-active,
+                .nav-glass-inactive,
+                .diia-glass-card,
+                header,
+                main {
+                    will-change: auto !important;
+                }
             }
 
             /* Відскок іконок в меню */
@@ -2192,7 +2293,7 @@
                             <div class="relative p-4 md:p-5">
                                 <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                                     <div class="flex items-center gap-4">
-                                        <div class="sanitary-hero-icon w-16 h-16 rounded-[24px] bg-gradient-to-br from-teal-500/16 to-cyan-500/10 dark:from-cyan-400/16 dark:to-slate-700/20 flex items-center justify-center text-teal-700 dark:text-cyan-300 text-4xl shadow-inner animate-slow-bounce">
+                                        <div class="sanitary-hero-icon w-16 h-16 rounded-[24px] bg-gradient-to-br from-teal-500/16 to-cyan-500/10 dark:from-cyan-400/16 dark:to-slate-700/20 flex items-center justify-center text-teal-700 dark:text-cyan-300 text-4xl shadow-inner">
                                             🧹
                                         </div>
                                         <div>
@@ -2209,11 +2310,11 @@
                                     </div>
                                 </div>
                                 <ul class="mt-6 grid gap-3 text-[14px] font-medium text-slate-700 dark:text-slate-200 leading-relaxed">
-                                    <li class="sanitary-item flex items-start gap-3"><span class="sanitary-emoji shrink-0 mt-1 inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-teal-500/20 text-teal-700 dark:bg-cyan-400/20 dark:text-cyan-200 font-black animate-slow-bounce">🧹</span>Миття підлоги.</li>
-                                    <li class="sanitary-item flex items-start gap-3"><span class="sanitary-emoji shrink-0 mt-1 inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-amber-400/20 text-amber-700 dark:bg-amber-300/20 dark:text-amber-200 font-black animate-slow-bounce">🧼</span>Миття газових плит.</li>
-                                    <li class="sanitary-item flex items-start gap-3"><span class="sanitary-emoji shrink-0 mt-1 inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-cyan-500/20 text-cyan-700 dark:bg-cyan-400/20 dark:text-cyan-200 font-black animate-slow-bounce">🧽</span>Миття плитки на стінах.</li>
-                                    <li class="sanitary-item flex items-start gap-3"><span class="sanitary-emoji shrink-0 mt-1 inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-200 font-black animate-slow-bounce">🪣</span>Мийка столів.</li>
-                                    <li class="sanitary-item flex items-start gap-3"><span class="sanitary-emoji shrink-0 mt-1 inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-violet-500/20 text-violet-700 dark:bg-violet-400/20 dark:text-violet-200 font-black animate-slow-bounce">🚿</span>Мийка раковин.</li>
+                                    <li class="sanitary-item flex items-start gap-3"><span class="sanitary-emoji shrink-0 mt-1 inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-teal-500/20 text-teal-700 dark:bg-cyan-400/20 dark:text-cyan-200 font-black">🧹</span>Миття підлоги.</li>
+                                    <li class="sanitary-item flex items-start gap-3"><span class="sanitary-emoji shrink-0 mt-1 inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-amber-400/20 text-amber-700 dark:bg-amber-300/20 dark:text-amber-200 font-black">🧼</span>Миття газових плит.</li>
+                                    <li class="sanitary-item flex items-start gap-3"><span class="sanitary-emoji shrink-0 mt-1 inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-cyan-500/20 text-cyan-700 dark:bg-cyan-400/20 dark:text-cyan-200 font-black">🧽</span>Миття плитки на стінах.</li>
+                                    <li class="sanitary-item flex items-start gap-3"><span class="sanitary-emoji shrink-0 mt-1 inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-200 font-black">🪣</span>Мийка столів.</li>
+                                    <li class="sanitary-item flex items-start gap-3"><span class="sanitary-emoji shrink-0 mt-1 inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-violet-500/20 text-violet-700 dark:bg-violet-400/20 dark:text-violet-200 font-black">🚿</span>Мийка раковин.</li>
 
                                 </ul>
                             </div>
@@ -6041,7 +6142,7 @@
 
                 document
                     .getElementById("confirm-cancel-btn")
-                    .addEventListener("click", () => {
+                    ?.addEventListener("click", () => {
                         document
                             .getElementById("modal-custom-confirm")
                             .classList.add("hidden");
@@ -6049,7 +6150,7 @@
                     });
                 document
                     .getElementById("confirm-ok-btn")
-                    .addEventListener("click", () => {
+                    ?.addEventListener("click", () => {
                         document
                             .getElementById("modal-custom-confirm")
                             .classList.add("hidden");
@@ -6688,6 +6789,39 @@
                                         )?.value || "22:00",
                                 };
                             } else if (sheet === "leaders") {
+                                const leadRoleInput = document.getElementById(
+                                    "input-lead-role",
+                                );
+                                const leadNameInput = document.getElementById(
+                                    "input-lead-name",
+                                );
+                                const leadRoomInput = document.getElementById(
+                                    "input-lead-room",
+                                );
+                                const leadPhoneInput = document.getElementById(
+                                    "input-lead-phone",
+                                );
+                                const leadTgInput = document.getElementById(
+                                    "input-lead-tg",
+                                );
+
+                                if (
+                                    !leadRoleInput ||
+                                    !leadNameInput ||
+                                    !leadRoomInput ||
+                                    !leadPhoneInput ||
+                                    !leadTgInput
+                                ) {
+                                    showToast(
+                                        "Не знайдено поля форми. Перезавантажте сторінку та спробуйте ще раз.",
+                                        "error",
+                                    );
+                                    document
+                                        .getElementById("db-loading")
+                                        .classList.add("hidden");
+                                    return;
+                                }
+
                                 let photoUrl = "";
                                 if (leadPhotoCrop.markedDelete) {
                                     photoUrl = "";
@@ -6715,20 +6849,11 @@
                                         action === "add"
                                             ? "l_" + Date.now()
                                             : rowId,
-                                    role: document.getElementById(
-                                        "input-lead-role",
-                                    ).value,
-                                    name: document.getElementById(
-                                        "input-lead-name",
-                                    ).value,
-                                    room: document.getElementById(
-                                        "input-lead-room",
-                                    ).value,
-                                    phone: document.getElementById(
-                                        "input-lead-phone",
-                                    ).value,
-                                    tg: document.getElementById("input-lead-tg")
-                                        .value,
+                                    role: leadRoleInput.value,
+                                    name: leadNameInput.value,
+                                    room: leadRoomInput.value,
+                                    phone: leadPhoneInput.value,
+                                    tg: leadTgInput.value,
                                     photo: photoUrl,
                                 };
                             } else if (sheet === "complaints") {
@@ -6775,47 +6900,47 @@
 
                 document
                     .getElementById("admin-add-goal-btn")
-                    .addEventListener("click", () =>
+                    ?.addEventListener("click", () =>
                         openCrudForm("goals", "add"),
                     );
                 document
                     .getElementById("admin-add-payment-btn")
-                    .addEventListener("click", () =>
+                    ?.addEventListener("click", () =>
                         openCrudForm("payments", "add"),
                     );
                 document
                     .getElementById("admin-add-expense-btn")
-                    .addEventListener("click", () =>
+                    ?.addEventListener("click", () =>
                         openCrudForm("expenses", "add"),
                     );
                 document
                     .getElementById("admin-add-poll-btn")
-                    .addEventListener("click", () =>
+                    ?.addEventListener("click", () =>
                         openCrudForm("polls", "add"),
                     );
                 document
                     .getElementById("admin-add-event-btn")
-                    .addEventListener("click", () =>
+                    ?.addEventListener("click", () =>
                         openCrudForm("events", "add"),
                     );
                 document
                     .getElementById("admin-add-duty-btn")
-                    .addEventListener("click", () =>
+                    ?.addEventListener("click", () =>
                         openCrudForm("duty", "add"),
                     );
                 document
                     .getElementById("admin-add-leader-btn")
-                    .addEventListener("click", () =>
+                    ?.addEventListener("click", () =>
                         openCrudForm("leaders", "add"),
                     );
                 document
                     .getElementById("admin-edit-info-btn")
-                    .addEventListener("click", () =>
+                    ?.addEventListener("click", () =>
                         openCrudForm("info", "edit"),
                     );
                 document
                     .getElementById("admin-edit-rules-btn")
-                    .addEventListener("click", () =>
+                    ?.addEventListener("click", () =>
                         openCrudForm("rules", "edit"),
                     );
 
@@ -6831,6 +6956,18 @@
                 renderAll();
                 // On initial load, mark the active (budget) tab as seen
                 clearTabBadge("tab-budget");
+            });
+            document.addEventListener("DOMContentLoaded", () => {
+                const html = document.documentElement;
+                const body = document.body;
+                html.style.height = "auto";
+                body.style.height = "auto";
+                html.style.overflowY = "auto";
+                body.style.overflowY = "auto";
+                html.style.overscrollBehavior = "auto";
+                body.style.overscrollBehavior = "auto";
+                html.style.touchAction = "auto";
+                body.style.touchAction = "auto";
             });
         </script>
     </body>
