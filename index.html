@@ -434,18 +434,19 @@
 
             /* Prevent iOS/Telegram WebView “invisible while scrolling” glitch */
             /* Avoid GPU layer issues caused by contain+transform+backdrop effects */
+            /* NOTE: keep this minimal; too much forced compositing can worsen scroll flicker */
             .cascade-item,
             .cascade-item * {
                 -webkit-backface-visibility: hidden;
                 backface-visibility: hidden;
-                transform: translateZ(0);
             }
 
-            /* Z-index stability for animated/stacked items */
+            /* Z-index stability for animated/stacked items (no forced GPU transform) */
             .cascade-item {
                 position: relative;
                 z-index: 1;
             }
+
 
             /* Затримка для каскаду, якщо елементів багато */
 
