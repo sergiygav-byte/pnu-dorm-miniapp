@@ -101,13 +101,12 @@
             }
 
             /* ===== GPU Performance Optimizations for Telegram Mini App ===== */
-            /* Scoped to iOS (tg-ios) to prevent specific scroll repaint bugs while avoiding layer explosion on Android */
-            html.tg-ios .tab-btn,
-            html.tg-ios .btn-push,
-            html.tg-ios .cascade-item,
-            html.tg-ios .animate-modal,
-            html.tg-ios .nav-glass-active,
-            html.tg-ios .nav-glass-inactive {
+            .tab-btn,
+            .btn-push,
+            .cascade-item,
+            .animate-modal,
+            .nav-glass-active,
+            .nav-glass-inactive {
                 will-change: transform, opacity;
                 -webkit-transform: translateZ(0);
                 transform: translateZ(0);
@@ -116,20 +115,20 @@
                 /* paint containment removed — caused image disappearing on iOS */
                 contain: style;
             }
-            /* Reduce paint on animated elements on iOS */
-            html.tg-ios .diia-glass-card,
-            html.tg-ios .app-tab {
+            /* Reduce paint on animated elements */
+            .diia-glass-card,
+            .app-tab {
                 will-change: transform, opacity;
             }
-            /* Force GPU layer on iOS only for images/icons inside glass cards and tab content — prevents iOS invisible-image bug */
-            html.tg-ios .diia-glass-card img,
-            html.tg-ios .app-tab img,
-            html.tg-ios .tab-btn i,
-            html.tg-ios .tab-btn svg,
-            html.tg-ios header i,
-            html.tg-ios header svg,
-            html.tg-ios header img,
-            html.tg-ios header {
+            /* Force GPU layer for images inside glass cards and tab content — prevents iOS invisible-image bug */
+            .diia-glass-card img,
+            .app-tab img,
+            .tab-btn i,
+            .tab-btn svg,
+            header i,
+            header svg,
+            header img,
+            header {
                 display: block;
                 -webkit-transform: translate3d(0, 0, 0);
                 transform: translate3d(0, 0, 0);
@@ -139,9 +138,9 @@
                 will-change: transform, opacity;
             }
             header {
-                position: sticky !important;
-                top: 0 !important;
-                z-index: 30 !important;
+                position: sticky;
+                top: 0;
+                z-index: 30;
                 backdrop-filter: blur(16px);
                 background: rgba(255, 255, 255, 0.82);
             }
@@ -436,8 +435,8 @@
             /* Prevent iOS/Telegram WebView “invisible while scrolling” glitch */
             /* Avoid GPU layer issues caused by contain+transform+backdrop effects */
             /* NOTE: keep this minimal; too much forced compositing can worsen scroll flicker */
-            html.tg-ios .cascade-item,
-            html.tg-ios .cascade-item * {
+            .cascade-item,
+            .cascade-item * {
                 -webkit-backface-visibility: hidden;
                 backface-visibility: hidden;
             }
@@ -706,31 +705,19 @@
             }
 
             /* ===== ANDROID PERFORMANCE: remove all backdrop-filter ===== */
-            /* Definitive Android Fix: Remove ALL backdrop-filters from ALL elements to prevent Chromium rendering glitches */
-            html.tg-android *,
-            html.tg-android *::before,
-            html.tg-android *::after {
+            /* Uses attribute selector to catch ALL Tailwind backdrop-blur-* classes */
+            html.tg-android [class*="backdrop-blur"] {
                 backdrop-filter: none !important;
                 -webkit-backdrop-filter: none !important;
             }
 
-            /* Android: header solid background (instead of blur) */
-            html.tg-android header {
-                background: rgba(248, 250, 252, 0.95) !important;
-                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
-            }
-            html.tg-android.dark header {
-                background: rgba(15, 23, 42, 0.95) !important;
-                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
-            }
-
             /* Android: glass cards — solid semi-transparent backgrounds */
             html.tg-android .diia-glass-card {
-                background: rgba(255, 255, 255, 0.94) !important;
+                background: rgba(255, 255, 255, 0.88);
                 box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
             }
             html.tg-android.dark .diia-glass-card {
-                background: rgba(15, 23, 42, 0.94) !important;
+                background: rgba(15, 23, 42, 0.92);
             }
 
             /* Android: kill ALL shimmer/glimmer animations */
@@ -1185,12 +1172,12 @@
 
             /* Android adjustments */
             html.tg-android .nav-glass-bar {
-                backdrop-filter: none !important;
-                -webkit-backdrop-filter: none !important;
+                backdrop-filter: blur(20px) saturate(140%);
+                -webkit-backdrop-filter: blur(20px) saturate(140%);
             }
             html.tg-android .nav-glass-active {
-                backdrop-filter: none !important;
-                -webkit-backdrop-filter: none !important;
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
             }
             html.tg-android .nav-glass-active::before {
                 animation-duration: 8s;
@@ -3109,6 +3096,8 @@
                         </h3>
                         <button
                             type="button"
+                            id="crud-close-btn"
+                            onclick="closeCrudModal()"
                             class="close-modal-btn w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 dark:text-slate-400 hover:text-rose-500 btn-push transition-colors"
                         >
                             <i class="fa-solid fa-xmark text-lg"></i>
@@ -3128,6 +3117,8 @@
                         >
                             <button
                                 type="button"
+                                id="crud-cancel-btn"
+                                onclick="closeCrudModal()"
                                 class="close-modal-btn flex-1 py-3 text-[14px] bg-slate-100 dark:bg-slate-800 rounded-xl font-bold btn-push border border-slate-200 dark:border-slate-700"
                             >
                                 Скасувати
@@ -5649,6 +5640,18 @@
                     .classList.remove("hidden");
             }
 
+            function closeCrudModal() {
+                document.getElementById("modal-crud-form").classList.add("hidden");
+            }
+
+            document
+                .getElementById("modal-crud-form")
+                .addEventListener("click", (e) => {
+                    if (e.target.id === "modal-crud-form") {
+                        closeCrudModal();
+                    }
+                });
+
             // ===== TAB BADGE SYSTEM =====
             // Maps each tab to the data key(s) that represent "new content" for that tab.
             // We store the last-seen counts per tab in localStorage and show a red dot
@@ -5734,11 +5737,8 @@
                 if (tg) {
                     tg.ready();
                     tg.expand();
-                    const platform = tg.platform || "";
-                    if (/android/i.test(platform || navigator.userAgent)) {
+                    if (/android/i.test(tg.platform || navigator.userAgent)) {
                         document.documentElement.classList.add("tg-android");
-                    } else if (/iphone|ipad|ipod|ios/i.test(platform || navigator.userAgent)) {
-                        document.documentElement.classList.add("tg-ios");
                     }
                     if (tg.themeParams?.bg_color) {
                         document.documentElement.style.setProperty(
